@@ -215,16 +215,80 @@ Every **5 levels**, choose a **Rare or Legendary** upgrade.
 - +10% weapon damage  
 - +15% attack speed  
 
----
+## Technologies Used
 
-## 📌 Roadmap (Optional Section)
-- [ ] Core movement & shooting  
-- [ ] Procedural room generation  
-- [ ] Enemy AI  
-- [ ] Boss fight  
-- [ ] Upgrade system  
-- [ ] Main menu progression  
-- [ ] SFX & music  
-- [ ] Steam release prep  
+- GitHub
+  - Version control, Project Submission 
+- HTML and CSS
+  - Layout / Styling for the web application
+- JavaScript / Node / Express
+  - Code for website / back end functionality
+  - Node / Express for serving the content
+- MongoDB
+  - Simple database that can directly store JSON objects for game data
+- Docker
+  - Use for creating container for deployment
 
----
+## Project Structure Proposal (To be changed)
+ 
+```text
+my-oven-game/
+│
+├── client/                              # frontend files served to the browser
+│   ├── index.html                       # main game page
+│   ├── play.html                        # page for playing a live game
+│   ├── history.html                     # page listing past games
+│   ├── replay.html                      # page for viewing a replay
+│   │
+│   ├── css/
+│   │   ├── styles.css                   # shared global styles
+│   │   ├── play.css                     # styles for play screen
+│   │   ├── history.css                  # styles for past games page
+│   │   └── replay.css                   # styles for replay screen
+│   │
+│   ├── js/
+│   │   ├── main.js                      # shared startup logic
+│   │   ├── play.js                      # live game logic in the browser
+│   │   ├── history.js                   # loads and displays past games
+│   │   ├── replay.js                    # replay controls and playback
+│   │   ├── board.js                     # board rendering and interaction
+│   │   └── ui.js                        # status text, buttons, move list, etc.
+│   │
+│   └── assets/
+│       ├── images/
+│       │   ├── board/                   # board graphics
+│       │   └── pieces/                  # chess piece images
+│       └── audio/
+│           ├── move.wav                 # move sound
+│           ├── capture.wav              # capture sound
+│           └── check.wav                # check sound
+│
+├── server/                              # Node backend
+│   ├── server.js                        # express setup, static serving, API mounting
+│   ├── db.js                            # MongoDB connection setup
+│   ├── package.json                     # backend dependencies and scripts
+│   ├── .env                             # environment variables
+│   │
+│   ├── api/
+│   │   ├── auth.js                      # login/register routes
+│   │   ├── games.js                     # save/load/list completed games
+│   │   └── ai.js                        # route for requesting an AI move
+│   │
+│   ├── models/
+│   │   ├── User.js                      # user account schema
+│   │   └── Game.js                      # saved game + move history schema
+│   │
+│   ├── chess/
+│   │   ├── ChessGame.js                 # board state, legal moves, rules, move application
+│   │   └── ChessAI.js                   # AI search + evaluation in one file
+│   │
+│   └── utils/
+│       └── auth.js                      # password hashing / token helpers
+│
+├── docker/
+│   ├── Dockerfile                       # container for Node app
+│   └── docker-compose.yml               # runs app + MongoDB together
+│
+├── .gitignore                           # ignores .env, node_modules, etc.
+└── README.md                            # project overview and setup instructions
+```
