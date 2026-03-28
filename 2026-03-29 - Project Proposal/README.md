@@ -228,17 +228,3 @@ Every **5 levels**, choose a **Rare or Legendary** upgrade.
 - [ ] Steam release prep  
 
 ---
-
-## 📜 License
-*(Add your preferred license here — MIT, GPL, etc.)*
-
----
-
-## 🤝 Contributing
-Pull requests are welcome. For major changes, open an issue first to discuss what you'd like to modify.
-
----
-
-## 🧀 Credits
-Designed & developed by the **Enter the Oven** team.  
-Art direction, gameplay design, and documentation by the team.
