@@ -1,4 +1,4 @@
-# AI6001_Project_Name_Here
+# AI6001_Enter the Oven
 
 Project Group Members:
 
