@@ -292,3 +292,16 @@ my-oven-game/
 ├── .gitignore                           # ignores .env, node_modules, etc.
 └── README.md                            # project overview and setup instructions
 ```
+# Enemy AI System
+
+## Swarm Director
+
+This is the "non-trivial" part that makes the system feel alive. One singleton object reads the global state each wave and assigns roles to enemy groups: aggressors, flankers, distractors, and harassers. It can throttle how many enemies chase the player directly to prevent mob-piling, and it can trigger elite enemies when the player has been too comfortable for too long. Think of it as a dungeon master reacting to player performance — if the player is kiting clockwise and never taking damage, the director spawns a flanker group to cut off the angle.
+
+## Utility AI
+
+Instead of a rigid state machine, each enemy scores several candidate actions every frame (attack, reposition, dodge, seek cover) and picks the highest score. Scores are computed from weighted inputs: distance to player, current health ratio, nearby bullet density, time-since-last-attack cooldown. This produces nuanced behavior that emerges from the numbers rather than hand-authored rules. A low-health enemy naturally starts scoring "retreat" higher. An enemy behind cover scores "fire" higher. It's cheap to tune and produces surprising results.
+
+## Behavior Tree
+
+The behavior tree executes whatever the utility scorer chose, but also handles real-time interrupts. If the player fires a wide-spread shot, interrupt nodes can trigger an immediate dodge even mid-attack. Flocking rules (separation, alignment, cohesion) live here too — they keep enemies from piling on the same pixel, which is a huge visual quality-of-life win in bullet-hell style games.
