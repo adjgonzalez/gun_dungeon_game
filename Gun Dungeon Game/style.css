@@ -1,0 +1,149 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+  color: #fff;
+  user-select: none;
+}
+
+#game-canvas {
+  display: block;
+  position: fixed;
+  top: 0; left: 0;
+}
+
+#ui-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#hud {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#health-bar-container, #xp-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+#health-bar, #xp-bar {
+  width: 160px;
+  height: 14px;
+  background: #333;
+  border: 1px solid #666;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c00, #f44);
+  transition: width 0.1s;
+}
+
+#xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0a0, #4f4);
+  transition: width 0.2s;
+}
+
+#health-text { font-size: 11px; color: #ccc; }
+#level-text { font-size: 11px; color: #4f4; font-weight: bold; }
+#ammo-display {
+  font-size: 20px;
+  color: #ff0;
+  margin-top: 4px;
+}
+
+#minimap-container {
+  position: absolute;
+  top: 12px; right: 12px;
+  border: 2px solid #555;
+  background: rgba(0,0,0,0.6);
+}
+
+/* Screens */
+.screen {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: 18px;
+}
+
+.screen.hidden { display: none; }
+
+h1 {
+  font-size: 52px;
+  color: #ffd700;
+  text-shadow: 0 0 20px #f80, 0 0 40px #f00;
+  letter-spacing: 4px;
+}
+
+h2 {
+  font-size: 36px;
+  color: #ffd700;
+  text-shadow: 0 0 12px #f80;
+}
+
+.screen p { font-size: 16px; color: #ccc; }
+
+button {
+  margin-top: 12px;
+  padding: 12px 36px;
+  font-size: 20px;
+  font-family: 'Courier New', monospace;
+  background: #222;
+  color: #ffd700;
+  border: 2px solid #ffd700;
+  border-radius: 4px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+button:hover {
+  background: #ffd700;
+  color: #000;
+  box-shadow: 0 0 16px #f80;
+}
+
+#buff-choices {
+  display: flex;
+  gap: 16px;
+  pointer-events: all;
+}
+
+.buff-card {
+  width: 180px;
+  padding: 18px 12px;
+  background: #1a1a2e;
+  border: 2px solid #4af;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, transform 0.1s;
+}
+.buff-card:hover {
+  background: #0f3460;
+  transform: scale(1.05);
+  box-shadow: 0 0 18px #4af;
+}
+.buff-card .buff-icon { font-size: 36px; margin-bottom: 8px; }
+.buff-card .buff-name { font-size: 14px; font-weight: bold; color: #4af; margin-bottom: 6px; }
+.buff-card .buff-desc { font-size: 12px; color: #aaa; }

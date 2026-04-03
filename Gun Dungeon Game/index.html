@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gungeon Survivors</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="ui-overlay">
+    <div id="hud">
+      <div id="health-bar-container">
+        <span>HP</span>
+        <div id="health-bar"><div id="health-fill"></div></div>
+        <span id="health-text"></span>
+      </div>
+      <div id="xp-bar-container">
+        <span>XP</span>
+        <div id="xp-bar"><div id="xp-fill"></div></div>
+        <span id="level-text">Lv 1</span>
+      </div>
+      <div id="ammo-display">∞</div>
+    </div>
+    <div id="minimap-container">
+      <canvas id="minimap" width="120" height="120"></canvas>
+    </div>
+  </div>
+
+  <div id="screen-start" class="screen">
+    <h1>GUNGEON SURVIVORS</h1>
+    <p>WASD / Arrow Keys — Move</p>
+    <p>Mouse — Aim &amp; Shoot</p>
+    <p>Kill enemies, level up, reach the boss!</p>
+    <button id="btn-start">START GAME</button>
+  </div>
+
+  <div id="screen-levelup" class="screen hidden">
+    <h2>LEVEL UP!</h2>
+    <p>Choose a buff:</p>
+    <div id="buff-choices"></div>
+  </div>
+
+  <div id="screen-gameover" class="screen hidden">
+    <h2 id="gameover-title">GAME OVER</h2>
+    <p id="gameover-msg"></p>
+    <button id="btn-restart">PLAY AGAIN</button>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+  <script src="game.js"></script>
+</body>
+</html>
