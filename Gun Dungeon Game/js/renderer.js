@@ -352,6 +352,21 @@ function drawEntity(e) {
     ctx.fillStyle = e.type === 'boss' ? '#f5c842' : '#f33';
     ctx.fillRect(bx, by, barW * (e.hp / e.maxHp), 5);
   }
+
+  // Meatball windup warning — pulsing red ring
+  if (e.windingUp) {
+    const pulse = 0.5 + 0.5 * Math.abs(Math.sin(Date.now() * 0.012));
+    ctx.save();
+    ctx.globalAlpha  = pulse;
+    ctx.strokeStyle  = '#ff2200';
+    ctx.lineWidth    = 3;
+    ctx.shadowBlur   = 10;
+    ctx.shadowColor  = '#ff2200';
+    ctx.beginPath();
+    ctx.arc(sx, sy, e.w * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // ── Bullet rendering ──────────────────────────────────────────────────────────
@@ -376,10 +391,28 @@ function drawBullets() {
 
   state.enemyBullets.forEach(b => {
     if (!b.alive) return;
-    ctx.fillStyle = '#ff7a30';
-    ctx.shadowBlur = 6; ctx.shadowColor = '#d63a2a';
-    ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
+    if (b.fireball) {
+      // Ground shadow — grows as fireball approaches its target
+      const distToTarget = Math.hypot(b.targetX - b.x, b.targetY - b.y);
+      const progress     = clamp(1 - distToTarget / b.startDist, 0, 1);
+      const shadowR      = 10 + progress * 50;
+      ctx.fillStyle = `rgba(0,0,0,${0.15 + progress * 0.45})`;
+      ctx.beginPath();
+      ctx.ellipse(b.targetX - cam.x, b.targetY - cam.y, shadowR, shadowR * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Fireball itself
+      ctx.fillStyle  = '#ff4400';
+      ctx.shadowBlur = 18; ctx.shadowColor = '#ff8800';
+      ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffdd00';
+      ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.fillStyle = '#5bc8f5';
+      ctx.shadowBlur = 6; ctx.shadowColor = '#3a9abf';
+      ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
   });
 }
 

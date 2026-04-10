@@ -4,6 +4,7 @@ function createPlayer(x, y) {
     w: 22, h: 22,
     hp: 100, maxHp: 100,
     speed: 180,
+    vx: 0, vy: 0,          // velocity for enemy prediction
     angle: 0,
     weaponIdx:    0,        // 0=Handgun, 1=Shotgun, 2=Rocket Launcher
     fireCooldown: 0,
@@ -46,7 +47,14 @@ function updatePlayer(dt) {
   if (keys['KeyA'] || keys['ArrowLeft'])  mx -= 1;
   if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
   const ml = Math.hypot(mx, my) || 1;
-  if (mx || my) moveWithCollision(player, mx / ml * player.speed * dt, my / ml * player.speed * dt);
+  if (mx || my) {
+    player.vx = (mx / ml) * player.speed;
+    player.vy = (my / ml) * player.speed;
+    moveWithCollision(player, player.vx * dt, player.vy * dt);
+  } else {
+    player.vx = 0;
+    player.vy = 0;
+  }
 
   // Face mouse
   const cam = state.cam;

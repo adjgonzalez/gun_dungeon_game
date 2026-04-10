@@ -38,6 +38,22 @@ function fireEnemyBullet(x, y, angle, speed, damage) {
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     damage, alive: true, w: 6, h: 6, range: 600, distTraveled: 0,
+    fireball: false,
+  });
+}
+
+function fireEnemyFireball(x, y, targetX, targetY, speed, damage) {
+  const dx   = targetX - x, dy = targetY - y;
+  const dist = Math.hypot(dx, dy) || 1;
+  state.enemyBullets.push({
+    x, y,
+    vx: (dx / dist) * speed,
+    vy: (dy / dist) * speed,
+    damage, alive: true, w: 14, h: 14,
+    range: 900, distTraveled: 0,
+    fireball: true,
+    targetX, targetY,
+    startDist: dist,
   });
 }
 
@@ -86,7 +102,17 @@ function updateEnemyBullets(dt) {
     b.y += b.vy * dt;
     b.distTraveled += Math.hypot(b.vx, b.vy) * dt;
 
-    if (b.distTraveled > b.range || solidAt(b.x, b.y)) { b.alive = false; return; }
+    if (b.distTraveled > b.range || solidAt(b.x, b.y)) {
+      if (b.fireball) fireballExplode(b);
+      b.alive = false;
+      return;
+    }
+
+    // Fireball explodes when close to target
+    if (b.fireball) {
+      const dtx = Math.hypot(b.targetX - b.x, b.targetY - b.y);
+      if (dtx < 18) { fireballExplode(b); b.alive = false; return; }
+    }
 
     if (player.invincible <= 0 && rectOverlap(b, player)) {
       player.hp        -= b.damage;
@@ -97,4 +123,17 @@ function updateEnemyBullets(dt) {
     }
   });
   state.enemyBullets = state.enemyBullets.filter(b => b.alive);
+}
+
+function fireballExplode(b) {
+  spawnParticles(b.x, b.y, '#ff6600', 20);
+  spawnParticles(b.x, b.y, '#ffdd00', 12);
+  const player = state.player;
+  const splashR = 70;
+  if (Math.hypot(player.x - b.x, player.y - b.y) < splashR && player.invincible <= 0) {
+    player.hp        -= b.damage;
+    player.invincible = 0.5;
+    spawnParticles(player.x, player.y, '#f44', 8);
+    if (player.hp <= 0) { player.alive = false; endGame(false); }
+  }
 }
