@@ -40,6 +40,7 @@ function update(ts) {
 
   updatePlayerBullets(dt);
   updateEnemyBullets(dt);
+  applyQueuedPlayerDamage();
   updateXpOrbs(dt);
   updateParticles(dt);
 
@@ -76,6 +77,7 @@ function startGame() {
   
   document.getElementById('screen-start').classList.add('hidden');
   document.getElementById('screen-gameover').classList.add('hidden');
+  document.getElementById('screen-pause').classList.add('hidden');
 
   state.bullets      = [];
   state.enemyBullets = [];
@@ -101,6 +103,42 @@ function startGame() {
   requestAnimationFrame(update);
 }
 
+function togglePause() {
+  if (!state.player || !state.player.alive) return;
+  const levelUpVisible = !document.getElementById('screen-levelup').classList.contains('hidden');
+  const gameOverVisible = !document.getElementById('screen-gameover').classList.contains('hidden');
+  if (levelUpVisible || gameOverVisible) return;
+
+  state.paused = !state.paused;
+  const pauseScreen = document.getElementById('screen-pause');
+  if (state.paused) {
+    pauseScreen.classList.remove('hidden');
+  } else {
+    pauseScreen.classList.add('hidden');
+    state.lastTime = performance.now();
+  }
+}
+
+function goToMainMenu() {
+  state.paused = true;
+  state.player = null;
+  mouse.down = false;
+
+  document.getElementById('screen-pause').classList.add('hidden');
+  document.getElementById('screen-levelup').classList.add('hidden');
+  document.getElementById('screen-gameover').classList.add('hidden');
+
+  if (typeof showStartScreen === 'function') {
+    showStartScreen();
+  } else {
+    document.getElementById('screen-start').classList.remove('hidden');
+  }
+}
+
+function quitGame() {
+  window.location.reload();
+}
+
 function endGame(won) {
   state.paused = true;
   const title = document.getElementById('gameover-title');
@@ -124,5 +162,15 @@ function endGame(won) {
 initRenderer();
 initInput(state.canvas);
 
+window.addEventListener('keydown', e => {
+  if (e.code === 'Escape' && !e.repeat) {
+    togglePause();
+  }
+});
+
 document.getElementById('btn-start').addEventListener('click', startGame);
 document.getElementById('btn-restart').addEventListener('click', startGame);
+document.getElementById('btn-gameover-menu').addEventListener('click', goToMainMenu);
+document.getElementById('btn-resume').addEventListener('click', togglePause);
+document.getElementById('btn-main-menu').addEventListener('click', goToMainMenu);
+document.getElementById('btn-quit-game').addEventListener('click', quitGame);

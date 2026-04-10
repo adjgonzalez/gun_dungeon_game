@@ -114,12 +114,9 @@ function updateEnemyBullets(dt) {
       if (dtx < 18) { fireballExplode(b); b.alive = false; return; }
     }
 
-    if (player.invincible <= 0 && rectOverlap(b, player)) {
-      player.hp        -= b.damage;
-      player.invincible = 0.5;
-      b.alive           = false;
-      spawnParticles(player.x, player.y, '#f44', 8);
-      if (player.hp <= 0) { player.alive = false; endGame(false); }
+    if (rectOverlap(b, player)) {
+      queuePlayerDamage(b.damage, { invincible: 0.5 });
+      b.alive = false;
     }
   });
   state.enemyBullets = state.enemyBullets.filter(b => b.alive);
@@ -130,10 +127,7 @@ function fireballExplode(b) {
   spawnParticles(b.x, b.y, '#ffdd00', 12);
   const player = state.player;
   const splashR = 70;
-  if (Math.hypot(player.x - b.x, player.y - b.y) < splashR && player.invincible <= 0) {
-    player.hp        -= b.damage;
-    player.invincible = 0.5;
-    spawnParticles(player.x, player.y, '#f44', 8);
-    if (player.hp <= 0) { player.alive = false; endGame(false); }
+  if (Math.hypot(player.x - b.x, player.y - b.y) < splashR) {
+    queuePlayerDamage(b.damage, { invincible: 0.5 });
   }
 }

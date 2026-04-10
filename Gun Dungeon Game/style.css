@@ -263,3 +263,34 @@ button:hover {
   color: #fff;
   box-shadow: 0 0 12px #f44;
 }
+
+#screen-pause p {
+  color: #bbb;
+  margin-bottom: 4px;
+}
+
+#screen-pause button {
+  min-width: 240px;
+}
+
+#btn-main-menu {
+  border-color: #4af;
+  color: #4af;
+}
+
+#btn-main-menu:hover {
+  background: #4af;
+  color: #000;
+  box-shadow: 0 0 16px #4af;
+}
+
+#btn-quit-game {
+  border-color: #f44;
+  color: #f44;
+}
+
+#btn-quit-game:hover {
+  background: #f44;
+  color: #fff;
+  box-shadow: 0 0 16px #f44;
+}

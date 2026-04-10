@@ -269,10 +269,9 @@ function separateEntities() {
     if (d < minDist && d > 0) {
       const push   = (minDist - d) / 2;
       const nx     = dx / d, ny = dy / d;
-      player.x    += nx * push;
-      player.y    += ny * push;
-      e.x         -= nx * push;
-      e.y         -= ny * push;
+      // Use movement collision so separation cannot shove actors into walls.
+      moveWithCollision(player,  nx * push,  ny * push);
+      moveWithCollision(e,      -nx * push, -ny * push);
     }
   }
 
@@ -289,10 +288,8 @@ function separateEntities() {
       if (d < minDist && d > 0) {
         const push = (minDist - d) / 2;
         const nx   = dx / d, ny = dy / d;
-        a.x += nx * push;
-        a.y += ny * push;
-        b.x -= nx * push;
-        b.y -= ny * push;
+        moveWithCollision(a,  nx * push,  ny * push);
+        moveWithCollision(b, -nx * push, -ny * push);
       }
     }
   }
@@ -307,11 +304,14 @@ function updateEnemyContact(dt) {
     const dy = player.y - e.y;
     const d  = Math.hypot(dx, dy);
     if (d < minDist) {
-      if (player.invincible <= 0) {
-        player.hp        -= e.damage * dt * 3;
-        player.invincible = 0.25;
-        if (player.hp <= 0) { player.alive = false; endGame(false); }
-      }
+      const safeD = d || 1;
+      const nx = dx / safeD;
+      const ny = dy / safeD;
+      queuePlayerDamage(e.damage * dt * 3, {
+        invincible: 0.25,
+        knockbackX: nx * 12,
+        knockbackY: ny * 12,
+      });
     }
   });
 }

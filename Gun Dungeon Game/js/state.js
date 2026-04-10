@@ -36,4 +36,51 @@ const state = {
   // Game flow
   paused:   false,
   lastTime: 0,
+
+  // Damage intake (resolved once per frame)
+  pendingPlayerDamage: {
+    amount: 0,
+    invincible: 0.25,
+    knockbackX: 0,
+    knockbackY: 0,
+  },
 };
+
+function queuePlayerDamage(amount, options = {}) {
+  const player = state.player;
+  if (!player || !player.alive || player.invincible > 0) return false;
+
+  const pending = state.pendingPlayerDamage;
+  if (amount > pending.amount) {
+    pending.amount = amount;
+    pending.invincible = options.invincible ?? 0.25;
+    pending.knockbackX = options.knockbackX ?? 0;
+    pending.knockbackY = options.knockbackY ?? 0;
+    return true;
+  }
+  return false;
+}
+
+function applyQueuedPlayerDamage() {
+  const player = state.player;
+  const pending = state.pendingPlayerDamage;
+  if (!player || !player.alive || pending.amount <= 0) return;
+
+  player.hp -= pending.amount;
+  player.invincible = pending.invincible;
+
+  if ((pending.knockbackX !== 0 || pending.knockbackY !== 0) && typeof moveWithCollision === 'function') {
+    moveWithCollision(player, pending.knockbackX, pending.knockbackY);
+  }
+
+  spawnParticles(player.x, player.y, '#f44', 8);
+  if (player.hp <= 0) {
+    player.alive = false;
+    endGame(false);
+  }
+
+  pending.amount = 0;
+  pending.invincible = 0.25;
+  pending.knockbackX = 0;
+  pending.knockbackY = 0;
+}
