@@ -25,8 +25,9 @@ const state = {
   xpOrbs:       [],
 
   // Boss door
-  bossDoorTiles: [],
-  bossLocked:    true,
+  bossDoorTiles:    [],
+  bossLocked:       true,
+  bossUnlockNotif:  0,   // countdown seconds for "boss room unlocked" banner
 
   // Delayed room lock
   lockPending:  false,

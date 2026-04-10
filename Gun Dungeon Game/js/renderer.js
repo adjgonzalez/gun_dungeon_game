@@ -1,8 +1,10 @@
 function initRenderer() {
   state.canvas  = document.getElementById('game-canvas');
   state.ctx     = state.canvas.getContext('2d');
+  state.ctx.imageSmoothingEnabled = false;
   state.minimap = document.getElementById('minimap');
   state.mctx    = state.minimap.getContext('2d');
+  state.mctx.imageSmoothingEnabled = false;
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 }
@@ -32,18 +34,246 @@ function drawTiles() {
       const sx = col * TILE - cam.x;
       const sy = row * TILE - cam.y;
 
-      if      (t === 0) ctx.fillStyle = '#050508';
-      else if (t === 1) ctx.fillStyle = (col + row) % 2 === 0 ? '#1a1a2e' : '#16213e';
-      else              ctx.fillStyle = '#4a3f55';
+      if      (t === 0) ctx.fillStyle = '#1a0e00';
+      else if (t === 1) ctx.fillStyle = (col + row) % 2 === 0 ? '#c8a96e' : '#b8995e';
+      else              ctx.fillStyle = '#5a3e2b';
 
       ctx.fillRect(sx, sy, TILE, TILE);
 
       if (t === 2) {
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
         ctx.fillRect(sx, sy, TILE, 4);
       }
     }
   }
+}
+
+// ── Pixel-art food sprite helpers ─────────────────────────────────────────────
+// Each helper draws at origin (0,0) inside a save/translate/rotate block.
+// p(ctx, x, y, w, h, color) is a shorthand pixel rect in "sprite pixels".
+
+function p(ctx, x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+function drawPizzaSlice(ctx, hw, hh) {
+  // Crust (tan/brown base triangle)
+  ctx.fillStyle = '#c8813a';
+  ctx.beginPath();
+  ctx.moveTo(0, -hh);
+  ctx.lineTo( hw, hh);
+  ctx.lineTo(-hw, hh);
+  ctx.closePath();
+  ctx.fill();
+  // Cheese (yellow fill inside crust)
+  ctx.fillStyle = '#f5d44a';
+  ctx.beginPath();
+  ctx.moveTo(0, -hh + 4);
+  ctx.lineTo( hw - 4, hh - 3);
+  ctx.lineTo(-hw + 4, hh - 3);
+  ctx.closePath();
+  ctx.fill();
+  // Tomato sauce patches
+  p(ctx, -4, -4,  5, 4, '#d63a2a');
+  p(ctx,  2,  2,  4, 3, '#d63a2a');
+  // Pepperoni dots
+  ctx.fillStyle = '#8b1a0a';
+  ctx.beginPath(); ctx.arc(-3,  0, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc( 3, -5, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc( 1,  4, 2,   0, Math.PI * 2); ctx.fill();
+  // Eyes
+  p(ctx, -3, -hh + 6, 2, 2, '#000');
+  p(ctx,  1, -hh + 6, 2, 2, '#000');
+  // Gun barrel stub
+  p(ctx, hw - 2, -2, 6, 4, '#aaa');
+}
+
+function drawPineappleSlice(ctx, hw, hh) {
+  // Wedge/triangle shape — rind outer edge at bottom, tip at top
+  // Rind (green outer skin)
+  ctx.fillStyle = '#4a9a1a';
+  ctx.beginPath();
+  ctx.moveTo(0, -hh);
+  ctx.lineTo( hw, hh);
+  ctx.lineTo(-hw, hh);
+  ctx.closePath();
+  ctx.fill();
+  // Yellow flesh (inset triangle)
+  ctx.fillStyle = '#f5c842';
+  ctx.beginPath();
+  ctx.moveTo(0, -hh + 4);
+  ctx.lineTo( hw - 3, hh - 2);
+  ctx.lineTo(-hw + 3, hh - 2);
+  ctx.closePath();
+  ctx.fill();
+  // Diamond texture lines on flesh
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, -hh + 4);
+  ctx.lineTo( hw - 3, hh - 2);
+  ctx.lineTo(-hw + 3, hh - 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.strokeStyle = '#b88a00';
+  ctx.lineWidth = 1;
+  for (let i = -2; i <= 2; i++) {
+    for (let j = -2; j <= 2; j++) {
+      ctx.strokeRect(i * 5 - 2, j * 5, 4, 4);
+    }
+  }
+  ctx.restore();
+  // Eyes near the tip
+  p(ctx, -3, -hh + 7, 2, 2, '#000');
+  p(ctx,  2, -hh + 7, 2, 2, '#000');
+  // Gun barrel on side
+  p(ctx, hw - 1, -2, 5, 3, '#aaa');
+}
+
+function drawMeatball(ctx, hw, hh) {
+  // Main brown sphere
+  ctx.fillStyle = '#8b3a1a';
+  ctx.beginPath();
+  ctx.arc(0, 0, hw, 0, Math.PI * 2);
+  ctx.fill();
+  // Highlight
+  ctx.fillStyle = '#b05a30';
+  ctx.beginPath();
+  ctx.arc(-hw * 0.3, -hh * 0.4, hw * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+  // Herb flecks
+  p(ctx, -4,  2, 2, 1, '#3a7a1a');
+  p(ctx,  3, -2, 2, 1, '#3a7a1a');
+  p(ctx, -1,  5, 2, 1, '#3a7a1a');
+  // Eyes
+  p(ctx, -4, -3, 3, 3, '#1a0800');
+  p(ctx,  2, -3, 3, 3, '#1a0800');
+  // White pupils
+  p(ctx, -3, -3, 1, 1, '#fff');
+  p(ctx,  3, -3, 1, 1, '#fff');
+  // Gun barrel
+  p(ctx, hw, -2, 6, 4, '#aaa');
+}
+
+function drawFish(ctx, hw, hh) {
+  // Body (blue oval)
+  ctx.fillStyle = '#5bc8f5';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Scales highlight
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(-2, -1, 4, 0, Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc( 3,  2, 3, 0, Math.PI); ctx.stroke();
+  // Tail fin
+  ctx.fillStyle = '#3a9abf';
+  ctx.beginPath();
+  ctx.moveTo(-hw, 0);
+  ctx.lineTo(-hw - 7,  hh);
+  ctx.lineTo(-hw - 7, -hh);
+  ctx.closePath();
+  ctx.fill();
+  // Eye
+  p(ctx, 4, -3, 4, 4, '#fff');
+  p(ctx, 5, -2, 2, 2, '#000');
+  // Gun barrel
+  p(ctx, hw, -2, 5, 3, '#aaa');
+}
+
+function drawMiniOven(ctx, hw, hh) {
+  // Oven body
+  ctx.fillStyle = '#c0c0c0';
+  ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+  // Door window
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-hw + 3, -hh + 3, hw * 2 - 6, hh * 2 - 9);
+  // Window glow (heating)
+  ctx.fillStyle = 'rgba(255,120,0,0.5)';
+  ctx.fillRect(-hw + 4, -hh + 4, hw * 2 - 8, hh * 2 - 11);
+  // Knobs
+  ctx.fillStyle = '#555';
+  ctx.beginPath(); ctx.arc(-hw + 4, hh - 3, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hw - 4,  hh - 3, 2, 0, Math.PI * 2); ctx.fill();
+  // Heat glow eyes
+  ctx.fillStyle = '#ff6600';
+  ctx.beginPath(); ctx.arc(-3, -hh + 7, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc( 3, -hh + 7, 2, 0, Math.PI * 2); ctx.fill();
+  // Gun barrel (smoke pipe on side)
+  p(ctx, hw, -3, 5, 4, '#888');
+}
+
+function drawGiantPineapple(ctx, hw, hh) {
+  // Body — large yellow oval
+  ctx.fillStyle = '#f5c842';
+  ctx.beginPath();
+  ctx.ellipse(0, 4, hw, hh - 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Diamond grid pattern — clipped to body ellipse
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, 4, hw, hh - 8, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.strokeStyle = '#b88a00';
+  ctx.lineWidth = 1.5;
+  for (let i = -3; i <= 3; i++) {
+    for (let j = -3; j <= 3; j++) {
+      ctx.strokeRect(i * 9 - 4, j * 9 - 4 + 4, 8, 8);
+    }
+  }
+  ctx.restore();
+  // Crown of leaves
+  ctx.fillStyle = '#2d7a0a';
+  const leaves = [
+    [-12, -hh + 4, 5, 16],
+    [-6,  -hh,     5, 20],
+    [ 0,  -hh - 4, 6, 22],
+    [ 6,  -hh,     5, 20],
+    [ 12, -hh + 4, 5, 16],
+  ];
+  leaves.forEach(([lx, ly, lw, lh]) => {
+    ctx.fillStyle = lx === 0 ? '#3a9a1a' : '#2d7a0a';
+    ctx.beginPath();
+    ctx.moveTo(lx + lw / 2, ly);
+    ctx.lineTo(lx + lw, ly + lh);
+    ctx.lineTo(lx, ly + lh);
+    ctx.closePath();
+    ctx.fill();
+  });
+  // Angry eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(-16, -4, 10, 10);
+  ctx.fillRect(  6, -4, 10, 10);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(-14, -2,  6,  6);
+  ctx.fillRect(   8, -2,  6,  6);
+  // Red pupils
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(-13, -1, 3, 3);
+  ctx.fillRect(   9, -1, 3, 3);
+  // Angry brows
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-17, -6); ctx.lineTo(-6, -8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo( 17, -6); ctx.lineTo( 6, -8); ctx.stroke();
+  // Spiky mouth
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(-12, 10);
+  ctx.lineTo(-8,  16); ctx.lineTo(-4, 11);
+  ctx.lineTo( 0,  16); ctx.lineTo( 4, 11);
+  ctx.lineTo( 8,  16); ctx.lineTo(12, 10);
+  ctx.closePath();
+  ctx.fill();
+  // Glow aura
+  ctx.shadowBlur  = 24;
+  ctx.shadowColor = '#f5c842';
+  ctx.strokeStyle = '#f5c842';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.ellipse(0, 4, hw + 3, hh - 5, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 }
 
 // ── Entity rendering ──────────────────────────────────────────────────────────
@@ -59,26 +289,25 @@ function drawEntity(e) {
     const s = e.w * 0.7;
     ctx.save();
     ctx.globalAlpha = pulse;
-    ctx.strokeStyle = e.type === 'boss' ? '#8f0' : e.color;
+    ctx.strokeStyle = e.type === 'boss' ? '#f5c842' : e.color;
     ctx.lineWidth   = 3;
     ctx.beginPath();
     ctx.moveTo(sx - s, sy - s); ctx.lineTo(sx + s, sy + s);
     ctx.moveTo(sx + s, sy - s); ctx.lineTo(sx - s, sy + s);
     ctx.stroke();
     // Timer ring
-    const progress = 1 - (e.spawnTimer / (e.spawnTimer + 0.001));
     ctx.strokeStyle = '#fff';
     ctx.lineWidth   = 1.5;
     ctx.globalAlpha = 0.3 * pulse;
     ctx.beginPath();
-    ctx.arc(sx, sy, s * 1.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.arc(sx, sy, s * 1.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * 0.99);
     ctx.stroke();
     ctx.restore();
     return;
   }
 
   // Drop shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(sx, sy + hh - 2, hw * 0.8, 5, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -88,31 +317,27 @@ function drawEntity(e) {
   ctx.rotate(e.angle);
 
   if (e.type === 'boss') {
-    ctx.shadowBlur = 20; ctx.shadowColor = e.color;
-    ctx.fillStyle  = e.color;
-    ctx.beginPath();
-    ctx.moveTo(0, -hh); ctx.lineTo(hw, 0);
-    ctx.lineTo(0, hh);  ctx.lineTo(-hw, 0);
-    ctx.closePath(); ctx.fill();
-    ctx.shadowBlur = 0;
+    drawGiantPineapple(ctx, hw, hh);
 
   } else if (e === player) {
-    ctx.fillStyle = '#7ec8e3';
-    ctx.fillRect(-hw, -hh, e.w, e.h);
-    ctx.fillStyle = '#ccc';
-    ctx.fillRect(0, -4, hw + 8, 8);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-6, -8, 5, 5);
-    ctx.fillRect( 2, -8, 5, 5);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-5, -7, 3, 3);
-    ctx.fillRect( 3, -7, 3, 3);
+    drawPizzaSlice(ctx, hw, hh);
+
+  } else if (e.type === 'pineapple_slice') {
+    drawPineappleSlice(ctx, hw, hh);
+
+  } else if (e.type === 'meatball') {
+    drawMeatball(ctx, hw, hh);
+
+  } else if (e.type === 'fish') {
+    drawFish(ctx, hw, hh);
+
+  } else if (e.type === 'mini_oven') {
+    drawMiniOven(ctx, hw, hh);
 
   } else {
+    // fallback
     ctx.fillStyle = e.color;
     ctx.fillRect(-hw, -hh, e.w, e.h);
-    ctx.fillStyle = '#888';
-    ctx.fillRect(2, -3, hw + 4, 6);
   }
 
   ctx.restore();
@@ -124,7 +349,7 @@ function drawEntity(e) {
     const by   = sy - hh - 10;
     ctx.fillStyle = '#400';
     ctx.fillRect(bx, by, barW, 5);
-    ctx.fillStyle = e.type === 'boss' ? '#0f0' : '#f33';
+    ctx.fillStyle = e.type === 'boss' ? '#f5c842' : '#f33';
     ctx.fillRect(bx, by, barW * (e.hp / e.maxHp), 5);
   }
 }
@@ -135,16 +360,16 @@ function drawBullets() {
 
   state.bullets.forEach(b => {
     if (!b.alive) return;
-    ctx.fillStyle = '#ffe066';
-    ctx.shadowBlur = 8; ctx.shadowColor = '#ff0';
+    ctx.fillStyle = '#fff176';
+    ctx.shadowBlur = 8; ctx.shadowColor = '#f5c842';
     ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
   });
 
   state.enemyBullets.forEach(b => {
     if (!b.alive) return;
-    ctx.fillStyle = '#f44';
-    ctx.shadowBlur = 6; ctx.shadowColor = '#f00';
+    ctx.fillStyle = '#ff7a30';
+    ctx.shadowBlur = 6; ctx.shadowColor = '#d63a2a';
     ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
   });
@@ -166,10 +391,14 @@ function drawXpOrbs() {
   const { ctx, cam } = state;
   state.xpOrbs.forEach(o => {
     if (!o.alive) return;
-    ctx.fillStyle = '#4f4';
-    ctx.shadowBlur = 8; ctx.shadowColor = '#0f0';
-    ctx.beginPath(); ctx.arc(o.x - cam.x, o.y - cam.y, 5, 0, Math.PI * 2); ctx.fill();
+    const ox = o.x - cam.x, oy = o.y - cam.y;
+    // Coin shape
+    ctx.fillStyle = '#f5c842';
+    ctx.shadowBlur = 8; ctx.shadowColor = '#f5c842';
+    ctx.beginPath(); ctx.arc(ox, oy, 5, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
+    ctx.fillStyle = '#c8a000';
+    ctx.beginPath(); ctx.arc(ox - 1, oy - 1, 2, 0, Math.PI * 2); ctx.fill();
   });
 }
 
@@ -186,9 +415,56 @@ function drawRoomClearFlash() {
   const { ctx, canvas } = state;
   const room = state.rooms[state.currentRoom];
   if (room.cleared && room.type !== 'boss') {
-    ctx.fillStyle = 'rgba(100,255,100,0.15)';
+    ctx.fillStyle = 'rgba(245,200,66,0.12)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+}
+
+function drawBossUnlockBanner() {
+  if (state.bossUnlockNotif <= 0) return;
+  const { ctx, canvas } = state;
+  // Fade out over the last second
+  const alpha = Math.min(1, state.bossUnlockNotif);
+  const cy = canvas.height / 2 - 40;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // Dark background pill
+  const text1 = 'ALL ROOMS CLEARED!';
+  const text2 = 'THE BOSS ROOM IS UNLOCKED';
+  ctx.font = 'bold 28px Courier New';
+  const w1 = ctx.measureText(text1).width;
+  ctx.font = 'bold 18px Courier New';
+  const w2 = ctx.measureText(text2).width;
+  const boxW = Math.max(w1, w2) + 48;
+  const boxH = 80;
+  const bx = canvas.width / 2 - boxW / 2;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.beginPath();
+  ctx.roundRect(bx, cy, boxW, boxH, 8);
+  ctx.fill();
+
+  // Gold border
+  ctx.strokeStyle = '#f5c842';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Top line
+  ctx.fillStyle = '#f5c842';
+  ctx.font = 'bold 24px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(text1, canvas.width / 2, cy + 30);
+
+  // Bottom line
+  ctx.fillStyle = '#fff';
+  ctx.font = '15px Courier New';
+  ctx.fillText(text2, canvas.width / 2, cy + 56);
+
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawBossHPBar() {

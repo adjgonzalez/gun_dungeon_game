@@ -1,25 +1,25 @@
 // ── Enemy definitions ─────────────────────────────────────────────────────────
 const ENEMY_TYPES = {
-  grunt: {
-    name:'Grunt', color:'#e05', w:22, h:22,
+  pineapple_slice: {
+    name:'Pineapple Slice', color:'#f5c842', w:22, h:22,
     hp:40, speed:80, damage:12, xp:20,
     fireRate:1400, bulletSpeed:220, bulletDamage:10,
     ai:'chase',
   },
-  shooter: {
-    name:'Shooter', color:'#a0f', w:20, h:20,
-    hp:30, speed:55, damage:8, xp:25,
-    fireRate:1000, bulletSpeed:280, bulletDamage:14,
-    ai:'strafe',
-  },
-  tank: {
-    name:'Tank', color:'#f80', w:32, h:32,
+  meatball: {
+    name:'Meatball', color:'#8b3a1a', w:32, h:32,
     hp:120, speed:50, damage:20, xp:50,
     fireRate:2000, bulletSpeed:180, bulletDamage:18,
     ai:'chase',
   },
-  speeder: {
-    name:'Speeder', color:'#0ef', w:16, h:16,
+  fish: {
+    name:'Fish', color:'#5bc8f5', w:20, h:20,
+    hp:30, speed:55, damage:8, xp:25,
+    fireRate:1000, bulletSpeed:280, bulletDamage:14,
+    ai:'strafe',
+  },
+  mini_oven: {
+    name:'Mini Oven', color:'#c0c0c0', w:16, h:16,
     hp:20, speed:160, damage:15, xp:30,
     fireRate:2500, bulletSpeed:300, bulletDamage:8,
     ai:'orbit',
@@ -27,7 +27,7 @@ const ENEMY_TYPES = {
 };
 
 const BOSS_DEF = {
-  name:'THE LICH', color:'#8f0', w:60, h:60,
+  name:'GIANT PINEAPPLE', color:'#f5c842', w:60, h:60,
   hp:1200, speed:60, damage:30, xp:500,
   fireRate:600, bulletSpeed:240, bulletDamage:22,
   ai:'boss',
@@ -181,14 +181,65 @@ function updateEnemy(e, dt) {
   }
 }
 
+function separateEntities() {
+  const player  = state.player;
+  const enemies = state.enemies;
+
+  // Separate player from each enemy
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+
+    const minDist = (player.w + e.w) / 2;
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d  = Math.hypot(dx, dy);
+    if (d < minDist && d > 0) {
+      const push   = (minDist - d) / 2;
+      const nx     = dx / d, ny = dy / d;
+      player.x    += nx * push;
+      player.y    += ny * push;
+      e.x         -= nx * push;
+      e.y         -= ny * push;
+    }
+  }
+
+  // Separate enemies from each other
+  for (let i = 0; i < enemies.length; i++) {
+    if (!enemies[i].alive) continue;
+    for (let j = i + 1; j < enemies.length; j++) {
+      if (!enemies[j].alive) continue;
+      const a = enemies[i], b = enemies[j];
+      const minDist = (a.w + b.w) / 2;
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const d  = Math.hypot(dx, dy);
+      if (d < minDist && d > 0) {
+        const push = (minDist - d) / 2;
+        const nx   = dx / d, ny = dy / d;
+        a.x += nx * push;
+        a.y += ny * push;
+        b.x -= nx * push;
+        b.y -= ny * push;
+      }
+    }
+  }
+}
+
 function updateEnemyContact(dt) {
   const player = state.player;
   state.enemies.forEach(e => {
     if (!e.alive) return;
-    if (player.invincible <= 0 && rectOverlap(e, player)) {
-      player.hp        -= e.damage * dt * 2;
-      player.invincible = 0.3;
-      if (player.hp <= 0) { player.alive = false; endGame(false); }
+    const minDist = (player.w + e.w) / 2;
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d  = Math.hypot(dx, dy);
+    if (d < minDist) {
+      if (player.invincible <= 0) {
+        player.hp        -= e.damage * dt * 3;
+        player.invincible = 0.25;
+        if (player.hp <= 0) { player.alive = false; endGame(false); }
+      }
     }
   });
 }

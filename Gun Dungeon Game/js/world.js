@@ -241,6 +241,8 @@ function unlockBossRoom() {
   state.bossLocked = false;
   state.bossDoorTiles.forEach(({ tx, ty }) => setTile(tx, ty, 1));
   state.bossDoorTiles = [];
+  state.rooms[state.bossRoomIdx].visited = true;
+  state.bossUnlockNotif = 4.0;
 }
 
 // ── Per-room door locking ─────────────────────────────────────────────────────
