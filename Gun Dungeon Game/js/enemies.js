@@ -1,33 +1,36 @@
 // ── Enemy definitions ─────────────────────────────────────────────────────────
 const ENEMY_TYPES = {
-  grunt: {
-    name:'Grunt', color:'#e05', w:22, h:22,
-    hp:40, speed:80, damage:12, xp:20,
-    fireRate:1400, bulletSpeed:220, bulletDamage:10,
-    ai:'chase',
+  pineapple_slice: {
+    // Melee — faster than player (player speed = 180), no ranged attack
+    name:'Pineapple Slice', color:'#f5c842', w:22, h:22,
+    hp:40, speed:230, damage:15, xp:20,
+    ai:'pineapple',
   },
-  shooter: {
-    name:'Shooter', color:'#a0f', w:20, h:20,
-    hp:30, speed:55, damage:8, xp:25,
-    fireRate:1000, bulletSpeed:280, bulletDamage:14,
-    ai:'strafe',
+  meatball: {
+    // Melee — slow idle, charges in a straight line predicting player movement
+    name:'Meatball', color:'#8b3a1a', w:32, h:32,
+    hp:120, speed:65, damage:28, xp:50,
+    chargeSpeed:390,
+    ai:'meatball',
   },
-  tank: {
-    name:'Tank', color:'#f80', w:32, h:32,
-    hp:120, speed:50, damage:20, xp:50,
-    fireRate:2000, bulletSpeed:180, bulletDamage:18,
-    ai:'chase',
+  fish: {
+    // Ranged — slower than player, shoots water drops at current player position
+    name:'Fish', color:'#5bc8f5', w:20, h:20,
+    hp:30, speed:110, damage:0, xp:25,
+    fireRate:1300, bulletSpeed:230, bulletDamage:12,
+    ai:'fish',
   },
-  speeder: {
-    name:'Speeder', color:'#0ef', w:16, h:16,
-    hp:20, speed:160, damage:15, xp:30,
-    fireRate:2500, bulletSpeed:300, bulletDamage:8,
-    ai:'orbit',
+  mini_oven: {
+    // Ranged — slower than player, lobs predicted fireballs at player
+    name:'Mini Oven', color:'#c0c0c0', w:22, h:22,
+    hp:45, speed:95, damage:0, xp:35,
+    fireRate:2400, bulletSpeed:145, bulletDamage:22,
+    ai:'mini_oven',
   },
 };
 
 const BOSS_DEF = {
-  name:'THE LICH', color:'#8f0', w:60, h:60,
+  name:'GIANT PINEAPPLE', color:'#f5c842', w:60, h:60,
   hp:1200, speed:60, damage:30, xp:500,
   fireRate:600, bulletSpeed:240, bulletDamage:22,
   ai:'boss',
@@ -89,12 +92,19 @@ function triggerRoomSpawn(room) {
       hp: def.hp, maxHp: def.hp,
       speed: def.speed, damage: def.damage,
       color: def.color, xp: def.xp, name: def.name,
-      fireRate: def.fireRate, fireCooldown: def.fireRate,
-      bulletSpeed: def.bulletSpeed, bulletDamage: def.bulletDamage,
+      fireRate:  def.fireRate  || 0,
+      fireCooldown: (def.fireRate || 0) * (0.5 + Math.random() * 0.5),
+      bulletSpeed:  def.bulletSpeed  || 0,
+      bulletDamage: def.bulletDamage || 0,
+      chargeSpeed:  def.chargeSpeed  || 0,
       ai: def.ai, angle: 0,
       alive: false, spawning: true, spawnTimer: sq.delay,
       orbitAngle: Math.random() * Math.PI * 2,
       type: sq.type, phase: 1, bossTimer: 0, charging: 0,
+      // meatball state machine
+      mbState: 'idle', chargeCooldown: rand(1.5, 3.0),
+      chargeTimer: 0, windupTimer: 0,
+      chargeDir: { x: 0, y: 0 }, windingUp: false,
     });
   });
   room.spawnQueue = [];
@@ -123,60 +133,167 @@ function fireBossPattern(e) {
   }
 }
 
+// ── Individual AI handlers ────────────────────────────────────────────────────
+function aiPineapple(e, dt, dx, dy, d) {
+  // Pure melee chaser — faster than player, always closes in
+  if (d > e.w) moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+}
+
+function aiMeatball(e, dt, dx, dy, d) {
+  const player = state.player;
+  e.windingUp = false;
+
+  if (e.mbState === 'idle') {
+    // Slow shamble toward player
+    if (d > e.w + 4) moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+    e.chargeCooldown -= dt;
+    if (e.chargeCooldown <= 0 && d < 420) {
+      // Predict where the player will be when the meatball arrives
+      const travelTime = d / e.chargeSpeed;
+      const predX = player.x + (player.vx || 0) * travelTime;
+      const predY = player.y + (player.vy || 0) * travelTime;
+      const pdx   = predX - e.x, pdy = predY - e.y;
+      const pd    = Math.hypot(pdx, pdy) || 1;
+      e.chargeDir  = { x: pdx / pd, y: pdy / pd };
+      e.mbState    = 'windup';
+      e.windupTimer = 0.55;
+    }
+  } else if (e.mbState === 'windup') {
+    // Brief pause — enemy shakes as a warning
+    e.windingUp   = true;
+    e.windupTimer -= dt;
+    if (e.windupTimer <= 0) {
+      e.mbState    = 'charging';
+      e.chargeTimer = 0.75;
+    }
+  } else if (e.mbState === 'charging') {
+    // Lock direction charge — cannot steer
+    moveWithCollision(e, e.chargeDir.x * e.chargeSpeed * dt, e.chargeDir.y * e.chargeSpeed * dt);
+    e.chargeTimer -= dt;
+    if (e.chargeTimer <= 0) {
+      e.mbState        = 'idle';
+      e.chargeCooldown = rand(2.0, 3.5);
+    }
+  }
+}
+
+function aiFish(e, dt, dx, dy, d) {
+  const PREFERRED = 200, FLEE = 120;
+  if (d > PREFERRED) {
+    // Close in slowly
+    moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+  } else if (d < FLEE) {
+    // Back away if player gets too close
+    moveWithCollision(e, -dx / d * e.speed * 0.7 * dt, -dy / d * e.speed * 0.7 * dt);
+  } else {
+    // Strafe sideways at preferred range
+    moveWithCollision(e,  Math.cos(e.orbitAngle) * e.speed * 0.6 * dt,
+                          Math.sin(e.orbitAngle) * e.speed * 0.6 * dt);
+    e.orbitAngle += dt * 1.0;
+  }
+
+  // Shoot at current player position — no prediction
+  e.fireCooldown -= dt * 1000;
+  if (e.fireCooldown <= 0 && d < 500) {
+    e.fireCooldown = e.fireRate;
+    fireEnemyBullet(e.x, e.y, e.angle, e.bulletSpeed, e.bulletDamage);
+  }
+}
+
+function aiMiniOven(e, dt, dx, dy, d) {
+  const PREFERRED = 280, FLEE = 140;
+  if (d > PREFERRED) {
+    moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+  } else if (d < FLEE) {
+    moveWithCollision(e, -dx / d * e.speed * 0.8 * dt, -dy / d * e.speed * 0.8 * dt);
+  }
+  // No strafing — the oven just stands and lobs fireballs
+
+  // Shoot predicted fireball
+  e.fireCooldown -= dt * 1000;
+  if (e.fireCooldown <= 0 && d < 550) {
+    e.fireCooldown = e.fireRate;
+    const player     = state.player;
+    const travelTime = d / e.bulletSpeed;
+    const predX      = player.x + (player.vx || 0) * travelTime;
+    const predY      = player.y + (player.vy || 0) * travelTime;
+    fireEnemyFireball(e.x, e.y, predX, predY, e.bulletSpeed, e.bulletDamage);
+  }
+}
+
 function updateEnemy(e, dt) {
   if (e.spawning) {
     e.spawnTimer -= dt;
-    if (e.spawnTimer <= 0) {
-      e.spawning = false;
-      e.alive    = true;
-    }
+    if (e.spawnTimer <= 0) { e.spawning = false; e.alive = true; }
     return;
   }
   if (!e.alive) return;
-  const dx = state.player.x - e.x;
-  const dy = state.player.y - e.y;
+
+  const player = state.player;
+  const dx = player.x - e.x;
+  const dy = player.y - e.y;
   const d  = Math.hypot(dx, dy) || 1;
   e.angle  = Math.atan2(dy, dx);
 
   switch (e.ai) {
-    case 'chase':
-      if (d > e.w) moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
-      break;
-
-    case 'strafe':
-      if (d > 200) {
-        moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
-      } else {
-        moveWithCollision(e, Math.cos(e.orbitAngle) * e.speed * dt, Math.sin(e.orbitAngle) * e.speed * dt);
-        e.orbitAngle += dt * 1.2;
-      }
-      break;
-
-    case 'orbit': {
-      e.orbitAngle += dt * 2.5;
-      const targetR = 130;
-      const tx = state.player.x + Math.cos(e.orbitAngle) * targetR;
-      const ty = state.player.y + Math.sin(e.orbitAngle) * targetR;
-      const ex = tx - e.x, ey = ty - e.y;
-      const ed = Math.hypot(ex, ey) || 1;
-      moveWithCollision(e, ex / ed * e.speed * dt, ey / ed * e.speed * dt);
-      break;
-    }
-
-    case 'boss':
-      updateBoss(e, dt, dx, dy, d);
-      break;
+    case 'pineapple': aiPineapple(e, dt, dx, dy, d); break;
+    case 'meatball':  aiMeatball (e, dt, dx, dy, d); break;
+    case 'fish':      aiFish     (e, dt, dx, dy, d); break;
+    case 'mini_oven': aiMiniOven (e, dt, dx, dy, d); break;
+    case 'boss':      updateBoss (e, dt, dx, dy, d); break;
   }
 
-  // Shooting
-  e.fireCooldown -= dt * 1000;
-  if (e.fireCooldown <= 0 && d < 600) {
-    e.fireCooldown = e.fireRate;
-    if (e.ai === 'boss') {
+  // Boss shooting handled separately
+  if (e.ai === 'boss') {
+    e.fireCooldown -= dt * 1000;
+    if (e.fireCooldown <= 0 && d < 700) {
+      e.fireCooldown = e.fireRate;
       fireBossPattern(e);
-    } else {
-      const spread = e.ai === 'strafe' ? 0.15 : 0.05;
-      fireEnemyBullet(e.x, e.y, e.angle + rand(-spread, spread), e.bulletSpeed, e.bulletDamage);
+    }
+  }
+}
+
+function separateEntities() {
+  const player  = state.player;
+  const enemies = state.enemies;
+
+  // Separate player from each enemy
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+
+    const minDist = (player.w + e.w) / 2;
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d  = Math.hypot(dx, dy);
+    if (d < minDist && d > 0) {
+      const push   = (minDist - d) / 2;
+      const nx     = dx / d, ny = dy / d;
+      player.x    += nx * push;
+      player.y    += ny * push;
+      e.x         -= nx * push;
+      e.y         -= ny * push;
+    }
+  }
+
+  // Separate enemies from each other
+  for (let i = 0; i < enemies.length; i++) {
+    if (!enemies[i].alive) continue;
+    for (let j = i + 1; j < enemies.length; j++) {
+      if (!enemies[j].alive) continue;
+      const a = enemies[i], b = enemies[j];
+      const minDist = (a.w + b.w) / 2;
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const d  = Math.hypot(dx, dy);
+      if (d < minDist && d > 0) {
+        const push = (minDist - d) / 2;
+        const nx   = dx / d, ny = dy / d;
+        a.x += nx * push;
+        a.y += ny * push;
+        b.x -= nx * push;
+        b.y -= ny * push;
+      }
     }
   }
 }
@@ -185,10 +302,16 @@ function updateEnemyContact(dt) {
   const player = state.player;
   state.enemies.forEach(e => {
     if (!e.alive) return;
-    if (player.invincible <= 0 && rectOverlap(e, player)) {
-      player.hp        -= e.damage * dt * 2;
-      player.invincible = 0.3;
-      if (player.hp <= 0) { player.alive = false; endGame(false); }
+    const minDist = (player.w + e.w) / 2;
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d  = Math.hypot(dx, dy);
+    if (d < minDist) {
+      if (player.invincible <= 0) {
+        player.hp        -= e.damage * dt * 3;
+        player.invincible = 0.25;
+        if (player.hp <= 0) { player.alive = false; endGame(false); }
+      }
     }
   });
 }

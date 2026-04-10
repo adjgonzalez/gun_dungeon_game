@@ -35,6 +35,7 @@ function update(ts) {
   const room = state.rooms[state.currentRoom];
   state.enemies = room.enemies.filter(e => e.alive || e.spawning);
   state.enemies.forEach(e => updateEnemy(e, dt));
+  separateEntities();
   updateEnemyContact(dt);
 
   updatePlayerBullets(dt);
@@ -43,6 +44,7 @@ function update(ts) {
   updateParticles(dt);
 
   checkRoomClear();
+  if (state.bossUnlockNotif > 0) state.bossUnlockNotif -= dt;
   updateCamera(state.player);
   updateHUD();
 
@@ -57,6 +59,8 @@ function update(ts) {
   drawEntity(state.player);
   drawLowHPFlash(ts);
   drawBossHPBar();
+  drawBossUnlockBanner();
+  drawWeaponSelector();
   drawRoomClearFlash();
   drawMinimap();
 
@@ -108,7 +112,7 @@ function endGame(won) {
   
   if (won) {
     title.textContent = 'YOU WIN!';
-    msg.textContent   = `You defeated the Lich and escaped the dungeon! Level ${state.player.level}`;
+    msg.textContent   = `You defeated the Giant Pineapple and escaped the oven! Level ${state.player.level}`;
   } else {
     title.textContent = 'GAME OVER';
     msg.textContent   = `You fell in the dungeon at level ${state.player.level}.`;
