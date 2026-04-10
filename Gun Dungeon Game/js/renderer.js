@@ -360,9 +360,17 @@ function drawBullets() {
 
   state.bullets.forEach(b => {
     if (!b.alive) return;
-    ctx.fillStyle = '#fff176';
-    ctx.shadowBlur = 8; ctx.shadowColor = '#f5c842';
-    ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
+    if (b.rocket) {
+      ctx.fillStyle  = '#ff6600';
+      ctx.shadowBlur = 14; ctx.shadowColor = '#ff3300';
+      ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffdd00';
+      ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 3, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle  = '#fff176';
+      ctx.shadowBlur = 8; ctx.shadowColor = '#f5c842';
+      ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.shadowBlur = 0;
   });
 
@@ -400,6 +408,55 @@ function drawXpOrbs() {
     ctx.fillStyle = '#c8a000';
     ctx.beginPath(); ctx.arc(ox - 1, oy - 1, 2, 0, Math.PI * 2); ctx.fill();
   });
+}
+
+// ── Weapon selector HUD ───────────────────────────────────────────────────────
+function drawWeaponSelector() {
+  const { ctx, canvas, player } = state;
+  const slotW = 90, slotH = 44, gap = 8;
+  const totalW = WEAPONS.length * slotW + (WEAPONS.length - 1) * gap;
+  const startX = canvas.width / 2 - totalW / 2;
+  const y      = canvas.height - slotH - 12;
+
+  WEAPONS.forEach((w, i) => {
+    const x       = startX + i * (slotW + gap);
+    const active  = i === player.weaponIdx;
+
+    // Slot background
+    ctx.fillStyle = active ? 'rgba(245,200,66,0.25)' : 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, slotW, slotH, 5);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = active ? '#f5c842' : '#555';
+    ctx.lineWidth   = active ? 2 : 1;
+    ctx.stroke();
+
+    // Key hint
+    ctx.fillStyle = active ? '#f5c842' : '#777';
+    ctx.font      = '10px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(`[${i + 1}]`, x + 5, y + 12);
+
+    // Weapon name
+    ctx.fillStyle = active ? '#fff' : '#aaa';
+    ctx.font      = active ? 'bold 11px Courier New' : '11px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(w.name, x + slotW / 2, y + 28);
+
+    // Fire rate dots (visual indicator)
+    const dotCount = 3;
+    const speed    = i === 0 ? 3 : i === 1 ? 1 : 0;  // filled dots = relative speed
+    for (let d = 0; d < dotCount; d++) {
+      ctx.beginPath();
+      ctx.arc(x + slotW / 2 - (dotCount - 1) * 5 + d * 10, y + 39, 3, 0, Math.PI * 2);
+      ctx.fillStyle = d < speed + 1 ? (active ? '#f5c842' : '#888') : 'rgba(255,255,255,0.15)';
+      ctx.fill();
+    }
+  });
+
+  ctx.textAlign = 'left';
 }
 
 // ── Overlay effects ───────────────────────────────────────────────────────────

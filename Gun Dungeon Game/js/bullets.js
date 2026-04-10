@@ -1,11 +1,34 @@
-function fireBullet(x, y, angle, speed, damage, range, pierce) {
+function fireBullet(x, y, angle, speed, damage, range, pierce, rocket = false) {
   state.bullets.push({
     x, y,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     damage, range, distTraveled: 0,
     pierce, pierceLeft: pierce,
-    alive: true, w: 7, h: 7,
+    alive: true,
+    w: rocket ? 12 : 7,
+    h: rocket ? 12 : 7,
+    rocket,
+  });
+}
+
+function rocketExplode(x, y) {
+  const w = WEAPONS[2];  // rocket launcher definition
+  spawnParticles(x, y, '#ff8800', 30);
+  spawnParticles(x, y, '#ffee00', 20);
+  state.enemies.forEach(e => {
+    if (!e.alive) return;
+    const d = Math.hypot(e.x - x, e.y - y);
+    if (d < w.splashRadius) {
+      const falloff = 1 - d / w.splashRadius;
+      e.hp -= w.splashDamage * falloff;
+      spawnParticles(e.x, e.y, e.color, 8);
+      if (e.hp <= 0) {
+        e.alive = false;
+        spawnXpOrb(e.x, e.y, e.xp);
+        spawnParticles(e.x, e.y, e.color, 16);
+      }
+    }
   });
 }
 
@@ -26,7 +49,8 @@ function updatePlayerBullets(dt) {
     b.distTraveled += Math.hypot(b.vx, b.vy) * dt;
 
     if (b.distTraveled > b.range || solidAt(b.x, b.y)) {
-      spawnParticles(b.x, b.y, '#ffe066', 4);
+      if (b.rocket) rocketExplode(b.x, b.y);
+      else spawnParticles(b.x, b.y, '#ffe066', 4);
       b.alive = false;
       return;
     }
@@ -34,6 +58,11 @@ function updatePlayerBullets(dt) {
     state.enemies.forEach(e => {
       if (!e.alive || !b.alive) return;
       if (rectOverlap(b, e)) {
+        if (b.rocket) {
+          rocketExplode(b.x, b.y);
+          b.alive = false;
+          return;
+        }
         e.hp -= b.damage;
         spawnParticles(e.x, e.y, e.color, 6);
         if (b.pierceLeft <= 0) b.alive = false;

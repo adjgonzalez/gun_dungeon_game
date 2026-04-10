@@ -60,6 +60,7 @@ function update(ts) {
   drawLowHPFlash(ts);
   drawBossHPBar();
   drawBossUnlockBanner();
+  drawWeaponSelector();
   drawRoomClearFlash();
   drawMinimap();
 
