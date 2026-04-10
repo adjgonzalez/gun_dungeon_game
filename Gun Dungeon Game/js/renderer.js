@@ -53,6 +53,30 @@ function drawEntity(e) {
   const sy = e.y - cam.y;
   const hw = e.w / 2, hh = e.h / 2;
 
+  // Spawn marker — draw pulsing X, skip normal rendering
+  if (e.spawning) {
+    const pulse = 0.4 + 0.6 * Math.abs(Math.sin(Date.now() * 0.005));
+    const s = e.w * 0.7;
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = e.type === 'boss' ? '#8f0' : e.color;
+    ctx.lineWidth   = 3;
+    ctx.beginPath();
+    ctx.moveTo(sx - s, sy - s); ctx.lineTo(sx + s, sy + s);
+    ctx.moveTo(sx + s, sy - s); ctx.lineTo(sx - s, sy + s);
+    ctx.stroke();
+    // Timer ring
+    const progress = 1 - (e.spawnTimer / (e.spawnTimer + 0.001));
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = 1.5;
+    ctx.globalAlpha = 0.3 * pulse;
+    ctx.beginPath();
+    ctx.arc(sx, sy, s * 1.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
   // Drop shadow
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();

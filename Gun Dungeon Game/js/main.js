@@ -10,9 +10,30 @@ function update(ts) {
   updatePlayer(dt);
   updateCurrentRoom();
 
-  // Refresh active enemy list from current room
+  // Lock doors once the player has walked far enough from any room edge
+  if (state.lockPending) {
+    const r = state.rooms[state.lockRoomIdx];
+    if (!r || r.cleared || state.currentRoom !== state.lockRoomIdx) {
+      state.lockPending = false;
+    } else {
+      const p = state.player;
+      const distFromEdge = Math.min(
+        p.x  - r.tx * TILE,
+        (r.tx + r.w) * TILE - p.x,
+        p.y  - r.ty * TILE,
+        (r.ty + r.h) * TILE - p.y
+      );
+      if (distFromEdge >= 80) {
+        state.lockPending = false;
+        lockRoom(r);
+        triggerRoomSpawn(r);
+      }
+    }
+  }
+
+  // Refresh active enemy list from current room (includes still-spawning enemies)
   const room = state.rooms[state.currentRoom];
-  state.enemies = room.enemies.filter(e => e.alive);
+  state.enemies = room.enemies.filter(e => e.alive || e.spawning);
   state.enemies.forEach(e => updateEnemy(e, dt));
   updateEnemyContact(dt);
 
@@ -52,6 +73,8 @@ function startGame() {
   state.particles    = [];
   state.xpOrbs       = [];
   state.paused       = false;
+  state.lockPending  = false;
+  state.lockRoomIdx  = -1;
 
   generateDungeon();
   populateRooms();

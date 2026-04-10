@@ -28,6 +28,10 @@ const state = {
   bossDoorTiles: [],
   bossLocked:    true,
 
+  // Delayed room lock
+  lockPending:  false,
+  lockRoomIdx:  -1,
+
   // Game flow
   paused:   false,
   lastTime: 0,

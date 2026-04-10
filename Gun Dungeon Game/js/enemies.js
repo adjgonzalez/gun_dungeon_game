@@ -54,15 +54,51 @@ function spawnEnemy(room, type) {
 }
 
 function populateRooms() {
+  const margin = 80;
   state.rooms.forEach(room => {
+    room.enemies    = [];
+    room.spawnQueue = [];
     if (room.type === 'start') return;
+
     if (room.type === 'boss') {
-      room.enemies = [spawnEnemy(room, 'boss')];
+      room.spawnQueue = [{
+        x: room.tx * TILE + room.w * TILE / 2,
+        y: room.ty * TILE + room.h * TILE / 2,
+        type: 'boss', delay: 2.0,
+      }];
       return;
     }
+
     const types = Object.keys(ENEMY_TYPES);
-    room.enemies = Array.from({ length: randInt(3, 7) }, () => spawnEnemy(room, choice(types)));
+    const count = randInt(3, 7);
+    room.spawnQueue = Array.from({ length: count }, (_, i) => ({
+      x: room.tx * TILE + margin + Math.random() * (room.w * TILE - margin * 2),
+      y: room.ty * TILE + margin + Math.random() * (room.h * TILE - margin * 2),
+      type: choice(types),
+      delay: 0.5 + i * 0.35,
+    }));
   });
+}
+
+function triggerRoomSpawn(room) {
+  room.spawnQueue.forEach((sq, i) => {
+    const def = sq.type === 'boss' ? BOSS_DEF : ENEMY_TYPES[sq.type];
+    room.enemies.push({
+      x: sq.x, y: sq.y,
+      w: def.w, h: def.h,
+      hp: def.hp, maxHp: def.hp,
+      speed: def.speed, damage: def.damage,
+      color: def.color, xp: def.xp, name: def.name,
+      fireRate: def.fireRate, fireCooldown: def.fireRate,
+      bulletSpeed: def.bulletSpeed, bulletDamage: def.bulletDamage,
+      ai: def.ai, angle: 0,
+      alive: false, spawning: true, spawnTimer: sq.delay,
+      orbitAngle: Math.random() * Math.PI * 2,
+      type: sq.type, phase: 1, bossTimer: 0, charging: 0,
+    });
+  });
+  room.spawnQueue = [];
+  state.enemies = room.enemies.filter(e => e.alive || e.spawning);
 }
 
 // ── AI behaviours ─────────────────────────────────────────────────────────────
@@ -88,6 +124,14 @@ function fireBossPattern(e) {
 }
 
 function updateEnemy(e, dt) {
+  if (e.spawning) {
+    e.spawnTimer -= dt;
+    if (e.spawnTimer <= 0) {
+      e.spawning = false;
+      e.alive    = true;
+    }
+    return;
+  }
   if (!e.alive) return;
   const dx = state.player.x - e.x;
   const dy = state.player.y - e.y;
@@ -140,6 +184,7 @@ function updateEnemy(e, dt) {
 function updateEnemyContact(dt) {
   const player = state.player;
   state.enemies.forEach(e => {
+    if (!e.alive) return;
     if (player.invincible <= 0 && rectOverlap(e, player)) {
       player.hp        -= e.damage * dt * 2;
       player.invincible = 0.3;

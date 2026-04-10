@@ -51,16 +51,24 @@ function updateCurrentRoom() {
   const idx = getRoomAt(state.player.x, state.player.y);
   if (idx >= 0 && idx !== state.currentRoom) {
     state.currentRoom = idx;
-    state.rooms[idx].visited = true;
-    state.enemies = state.rooms[idx].enemies.filter(e => e.alive);
+    const room = state.rooms[idx];
+    room.visited = true;
+    if (!room.cleared) {
+      state.lockPending = true;
+      state.lockRoomIdx = idx;
+    } else {
+      state.enemies = room.enemies.filter(e => e.alive || e.spawning);
+    }
   }
 }
 
 function checkRoomClear() {
   const room = state.rooms[state.currentRoom];
   if (room.cleared) return;
-  if (room.enemies.filter(e => e.alive).length === 0) {
+  // Room is clear only when no enemies are alive or still spawning
+  if (room.spawnQueue.length === 0 && room.enemies.filter(e => e.alive || e.spawning).length === 0) {
     room.cleared = true;
+    unlockRoom(room);
     spawnParticles(room.cx, room.cy, '#ffd700', 30);
     if (room.type === 'boss') {
       endGame(true);
@@ -181,6 +189,7 @@ function generateDungeon() {
   state.bossRoomIdx  = state.rooms.findIndex(r => r.type === 'boss');
   state.bossLocked   = true;
   blockBossHallways();
+  computeRoomDoorTiles();
 }
 
 // ── Boss door ─────────────────────────────────────────────────────────────────
@@ -232,4 +241,44 @@ function unlockBossRoom() {
   state.bossLocked = false;
   state.bossDoorTiles.forEach(({ tx, ty }) => setTile(tx, ty, 1));
   state.bossDoorTiles = [];
+}
+
+// ── Per-room door locking ─────────────────────────────────────────────────────
+function computeRoomDoorTiles() {
+  state.rooms.forEach(room => {
+    room.doorTiles = [];
+    if (room.type === 'start') return;
+
+    [['N', 0, -1], ['S', 0, 1], ['E', 1, 0], ['W', -1, 0]].forEach(([dir, dx, dy]) => {
+      if (!room.doors[dir]) return;
+      const nb = state.rooms.find(r => r.gx === room.gx + dx && r.gy === room.gy + dy);
+      if (!nb) return;
+
+      if (dir === 'E') {
+        const midY = room.ty + Math.floor(room.h / 2);
+        const bx   = room.tx + room.w;
+        for (let w = -1; w <= 1; w++) room.doorTiles.push({ tx: bx,      ty: midY + w });
+      } else if (dir === 'W') {
+        const midY = nb.ty + Math.floor(nb.h / 2);
+        const bx   = room.tx - 1;
+        for (let w = -1; w <= 1; w++) room.doorTiles.push({ tx: bx,      ty: midY + w });
+      } else if (dir === 'S') {
+        const midX = room.tx + Math.floor(room.w / 2);
+        const by   = room.ty + room.h;
+        for (let w = -1; w <= 1; w++) room.doorTiles.push({ tx: midX + w, ty: by });
+      } else if (dir === 'N') {
+        const midX = nb.tx + Math.floor(nb.w / 2);
+        const by   = room.ty - 1;
+        for (let w = -1; w <= 1; w++) room.doorTiles.push({ tx: midX + w, ty: by });
+      }
+    });
+  });
+}
+
+function lockRoom(room) {
+  room.doorTiles.forEach(({ tx, ty }) => setTile(tx, ty, 2));
+}
+
+function unlockRoom(room) {
+  room.doorTiles.forEach(({ tx, ty }) => setTile(tx, ty, 1));
 }
