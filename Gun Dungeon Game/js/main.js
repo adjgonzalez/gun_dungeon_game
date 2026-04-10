@@ -64,6 +64,12 @@ function update(ts) {
 }
 
 function startGame() {
+  // Check if user is authenticated
+  if (!authToken || !currentUser) {
+    showLoginScreen();
+    return;
+  }
+  
   document.getElementById('screen-start').classList.add('hidden');
   document.getElementById('screen-gameover').classList.add('hidden');
 
@@ -95,6 +101,11 @@ function endGame(won) {
   state.paused = true;
   const title = document.getElementById('gameover-title');
   const msg   = document.getElementById('gameover-msg');
+  
+  // Save player progress to database
+  const finalScore = Math.floor(state.player.x / 32 * 10 + state.player.level * 100);
+  updateUserProgress(finalScore, state.player.level);
+  
   if (won) {
     title.textContent = 'YOU WIN!';
     msg.textContent   = `You defeated the Lich and escaped the dungeon! Level ${state.player.level}`;

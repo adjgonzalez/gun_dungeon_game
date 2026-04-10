@@ -147,3 +147,119 @@ button:hover {
 .buff-card .buff-icon { font-size: 36px; margin-bottom: 8px; }
 .buff-card .buff-name { font-size: 14px; font-weight: bold; color: #4af; margin-bottom: 6px; }
 .buff-card .buff-desc { font-size: 12px; color: #aaa; }
+
+/* Authentication Screens */
+.auth-screen {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(15, 52, 96, 0.3) 100%);
+}
+
+.auth-container {
+  background: rgba(20, 20, 40, 0.9);
+  border: 2px solid #4af;
+  border-radius: 8px;
+  padding: 36px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 0 30px rgba(68, 170, 255, 0.3);
+}
+
+.auth-screen h2 {
+  font-size: 28px;
+  color: #4af;
+  margin-bottom: 24px;
+  text-shadow: 0 0 12px #4af;
+}
+
+.auth-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  pointer-events: all;
+}
+
+.auth-container input {
+  padding: 12px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  background: #1a1a2e;
+  color: #fff;
+  border: 1px solid #4af;
+  border-radius: 4px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.auth-container input:focus {
+  outline: none;
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+}
+
+.auth-container input::placeholder {
+  color: #888;
+}
+
+.auth-container button {
+  margin-top: 0;
+  padding: 12px 36px;
+  font-size: 16px;
+  background: #4af;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.auth-container button:hover {
+  background: #6cf;
+  box-shadow: 0 0 16px #4af;
+}
+
+.error-message {
+  color: #f44;
+  font-size: 13px;
+  text-align: center;
+  min-height: 18px;
+}
+
+.auth-toggle {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #aaa;
+  text-align: center;
+  pointer-events: all;
+}
+
+.auth-toggle a {
+  color: #4af;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.auth-toggle a:hover {
+  color: #ffd700;
+  text-decoration: underline;
+}
+
+#user-info {
+  font-size: 14px;
+  margin: 16px 0;
+  color: #ccc;
+}
+
+#btn-logout {
+  background: #f44;
+  color: #fff;
+  margin-top: 12px;
+  padding: 10px 24px;
+  font-size: 14px;
+  border-color: #f44;
+}
+
+#btn-logout:hover {
+  background: #f66;
+  color: #fff;
+  box-shadow: 0 0 12px #f44;
+}
