@@ -18,6 +18,9 @@ function rocketExplode(x, y) {
   const splashDmg = w.splashDamage + dmgBonus;
   spawnParticles(x, y, '#ff8800', 30);
   spawnParticles(x, y, '#ffee00', 20);
+  if (typeof audioPlayEnemyHit === 'function') {
+    audioPlayEnemyHit();
+  }
   state.enemies.forEach(e => {
     if (!e.alive) return;
     const d = Math.hypot(e.x - x, e.y - y);
@@ -28,6 +31,9 @@ function rocketExplode(x, y) {
       if (e.hp <= 0) {
         e.alive = false;
         coinDrop(e);
+        if (typeof audioPlayEnemyDown === 'function') {
+          audioPlayEnemyDown();
+        }
         spawnXpOrb(e.x, e.y, e.xp);
         spawnParticles(e.x, e.y, e.color, 16);
       }
@@ -83,12 +89,18 @@ function updatePlayerBullets(dt) {
           return;
         }
         e.hp -= b.damage;
+        if (typeof audioPlayEnemyHit === 'function') {
+          audioPlayEnemyHit();
+        }
         spawnParticles(e.x, e.y, e.color, 6);
         if (b.pierceLeft <= 0) b.alive = false;
         else b.pierceLeft--;
         if (e.hp <= 0) {
           e.alive = false;
           coinDrop(e);
+          if (typeof audioPlayEnemyDown === 'function') {
+            audioPlayEnemyDown();
+          }
           spawnXpOrb(e.x, e.y, e.xp);
           spawnParticles(e.x, e.y, e.color, 16);
         }
@@ -126,6 +138,9 @@ function updateEnemyBullets(dt) {
 }
 
 function fireballExplode(b) {
+  if (typeof audioPlayEnemyHit === 'function') {
+    audioPlayEnemyHit();
+  }
   spawnParticles(b.x, b.y, '#ff6600', 20);
   spawnParticles(b.x, b.y, '#ffdd00', 12);
   const player = state.player;

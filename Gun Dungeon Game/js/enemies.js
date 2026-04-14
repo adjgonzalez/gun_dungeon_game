@@ -567,6 +567,25 @@ function updateEnemy(e, dt) {
     }
   }
 
+  // Anti-stuck nudge: if an enemy barely moves for too long, push it sideways.
+  const moved = Math.hypot(e.x - (e.lastX ?? e.x), e.y - (e.lastY ?? e.y));
+  if (moved < 1.0) {
+    e.stuckTimer = (e.stuckTimer || 0) + dt;
+  } else {
+    e.stuckTimer = 0;
+  }
+
+  if ((e.stuckTimer || 0) > 1.1) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const nx = Math.cos(e.angle + side * Math.PI / 2);
+    const ny = Math.sin(e.angle + side * Math.PI / 2);
+    moveWithCollision(e, nx * e.speed * 0.35 * dt, ny * e.speed * 0.35 * dt);
+    e.stuckTimer = 0;
+  }
+
+  e.lastX = e.x;
+  e.lastY = e.y;
+
 }
 
 function coinDrop(e) {
@@ -595,6 +614,11 @@ function separateEntities() {
       // Use movement collision so separation cannot shove actors into walls.
       moveWithCollision(player,  nx * push,  ny * push);
       moveWithCollision(e,      -nx * push, -ny * push);
+    } else if (d === 0) {
+      const a = Math.random() * Math.PI * 2;
+      const nudge = Math.max(1, minDist * 0.2);
+      moveWithCollision(player, Math.cos(a) * nudge, Math.sin(a) * nudge);
+      moveWithCollision(e, -Math.cos(a) * nudge, -Math.sin(a) * nudge);
     }
   }
 
@@ -613,6 +637,11 @@ function separateEntities() {
         const nx   = dx / d, ny = dy / d;
         moveWithCollision(a,  nx * push,  ny * push);
         moveWithCollision(b, -nx * push, -ny * push);
+      } else if (d === 0) {
+        const ang = Math.random() * Math.PI * 2;
+        const nudge = Math.max(1, minDist * 0.2);
+        moveWithCollision(a,  Math.cos(ang) * nudge,  Math.sin(ang) * nudge);
+        moveWithCollision(b, -Math.cos(ang) * nudge, -Math.sin(ang) * nudge);
       }
     }
   }

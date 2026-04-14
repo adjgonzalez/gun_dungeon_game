@@ -117,6 +117,9 @@ function playerShoot(dt) {
   const rateBonus = player.weaponRateBonus[wIdx]  || 0;  // fire-rate reduction factor
 
   player.fireCooldown = w.fireRate * fireRateRatio * (1 - rateBonus);
+  if (typeof audioPlayShoot === 'function') {
+    audioPlayShoot(player.weaponIdx);
+  }
 
   const cam       = state.cam;
   const baseAngle = Math.atan2((mouse.y + cam.y) - player.y, (mouse.x + cam.x) - player.x);
@@ -155,12 +158,17 @@ function damagePlayer(amount) {
 
   // Shield absorption
   if (p.shieldHp > 0) {
-    const absorbed = Math.min(p.shieldHp, dmg);
-    p.shieldHp -= absorbed;
-    dmg        -= absorbed;
+    p.shieldHp = Math.max(0, p.shieldHp - 1);
+    dmg = 0;
+    if (typeof audioPlayShieldHit === 'function') {
+      audioPlayShieldHit();
+    }
     if (p.shieldHp <= 0 && p.shieldCooldown > 0) {
       p.shieldTimer = p.shieldCooldown;
       spawnFloatingText(p.x, p.y - 24, 'SHIELD BREAK', '#f80');
+      if (typeof audioPlayShieldBreak === 'function') {
+        audioPlayShieldBreak();
+      }
     }
     spawnParticles(p.x, p.y, '#4af', 5);
     if (dmg <= 0) { p.invincible = 0.2; return false; }
@@ -168,6 +176,9 @@ function damagePlayer(amount) {
 
   p.hp        -= dmg;
   p.invincible = 0.4;
+  if (typeof audioPlayPlayerHit === 'function') {
+    audioPlayPlayerHit();
+  }
   spawnParticles(p.x, p.y, '#f44', 8);
   if (p.hp <= 0) { p.alive = false; endGame(false); }
   return true;

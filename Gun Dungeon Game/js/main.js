@@ -112,6 +112,9 @@ function startGame() {
 
   document.getElementById('level-text').textContent = 'Lv 1';
   state.lastTime = performance.now();
+  if (typeof ensureAudioStarted === 'function') ensureAudioStarted();
+  if (typeof audioStartMusic === 'function') audioStartMusic();
+  if (typeof audioPlayUiConfirm === 'function') audioPlayUiConfirm();
   requestAnimationFrame(update);
 }
 
@@ -125,14 +128,17 @@ function togglePause() {
   const pauseScreen = document.getElementById('screen-pause');
   if (state.paused) {
     pauseScreen.classList.remove('hidden');
+    if (typeof audioStopMusic === 'function') audioStopMusic();
   } else {
     pauseScreen.classList.add('hidden');
+    if (typeof audioStartMusic === 'function') audioStartMusic();
     state.lastTime = performance.now();
   }
 }
 
 function goToMainMenu() {
   state.paused = true;
+  if (typeof audioStopMusic === 'function') audioStopMusic();
   state.player = null;
   mouse.down = false;
 
@@ -153,6 +159,7 @@ function quitGame() {
 
 function endGame(won) {
   state.paused = true;
+  if (typeof audioStopMusic === 'function') audioStopMusic();
   bankRunCoins(state.runCoins || 0);
   const title = document.getElementById('gameover-title');
   const msg   = document.getElementById('gameover-msg');
@@ -162,9 +169,11 @@ function endGame(won) {
   updateUserProgress(finalScore, state.player.level);
   
   if (won) {
+    if (typeof audioPlayWin === 'function') audioPlayWin();
     title.textContent = 'YOU WIN!';
     msg.textContent   = `You defeated the Giant Pineapple and escaped the oven! Level ${state.player.level}`;
   } else {
+    if (typeof audioPlayGameOver === 'function') audioPlayGameOver();
     title.textContent = 'GAME OVER';
     msg.textContent   = `You fell in the dungeon at level ${state.player.level}.`;
   }

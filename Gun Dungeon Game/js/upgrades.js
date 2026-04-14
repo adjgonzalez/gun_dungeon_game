@@ -75,7 +75,8 @@ function applyUpgradesToPlayer(player) {
   // Shield activates as soon as any shieldHp is purchased
   if (u.shieldHp > 0) {
     player.shieldCooldown = Math.max(5, 20 - u.shieldCd);  // base 20s, -1s per level, min 5s
-    player.shieldMaxHp    = u.shieldHp * 30;               // 30 HP per "hit" level
+    // Shield uses discrete charges: one charge absorbs one damaging hit.
+    player.shieldMaxHp    = u.shieldHp;
     player.shieldHp       = player.shieldMaxHp;
   }
 

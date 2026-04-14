@@ -757,31 +757,32 @@ function drawPressureBanner() {
   if (state.pressureNotif <= 0) return;
   const { ctx, canvas } = state;
   const alpha = Math.min(1, state.pressureNotif);
-  const cy    = canvas.height / 2 + 60;
+  const margin = 18;
+  const boxW = 300;
+  const boxH = 56;
+  const bx   = canvas.width - boxW - margin;
+  const by   = canvas.height - boxH - margin;
 
   ctx.save();
-  ctx.globalAlpha = alpha;
+  ctx.globalAlpha = alpha * 0.85;
 
   const text1 = '⚠  PRESSURE WAVE  ⚠';
   const text2 = 'The enemies grow restless!';
-  ctx.font = 'bold 22px Courier New';
-  const boxW = ctx.measureText(text1).width + 48;
-  const boxH = 68;
-  const bx   = canvas.width / 2 - boxW / 2;
 
-  ctx.fillStyle = 'rgba(160,0,0,0.75)';
-  ctx.beginPath(); ctx.roundRect(bx, cy, boxW, boxH, 8); ctx.fill();
+  ctx.fillStyle = 'rgba(115,0,0,0.62)';
+  ctx.beginPath(); ctx.roundRect(bx, by, boxW, boxH, 8); ctx.fill();
 
-  ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 1.5;
   ctx.stroke();
 
   ctx.fillStyle = '#ff6666';
+  ctx.font = 'bold 15px Courier New';
   ctx.textAlign = 'center';
-  ctx.fillText(text1, canvas.width / 2, cy + 28);
+  ctx.fillText(text1, bx + boxW / 2, by + 22);
 
   ctx.fillStyle = '#ffbbbb';
-  ctx.font = '13px Courier New';
-  ctx.fillText(text2, canvas.width / 2, cy + 50);
+  ctx.font = '12px Courier New';
+  ctx.fillText(text2, bx + boxW / 2, by + 40);
 
   ctx.textAlign = 'left';
   ctx.globalAlpha = 1;
