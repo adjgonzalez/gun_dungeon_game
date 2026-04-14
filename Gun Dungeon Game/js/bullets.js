@@ -82,8 +82,9 @@ function updatePlayerBullets(dt) {
     b.y += b.vy * dt;
     b.distTraveled += Math.hypot(b.vx, b.vy) * dt;
 
-    if (b.distTraveled > b.range || solidAt(b.x, b.y)) {
-      if (!b.rocket && state.player?.bounceOnce && !b.bounced && solidAt(b.x, b.y)) {
+    const hitWall = solidAt(b.x, b.y);
+    if (hitWall) {
+      if (!b.rocket && state.player?.bounceOnce && !b.bounced) {
         b.bounced = true;
         const hitX = solidAt(prevX, b.y);
         const hitY = solidAt(b.x, prevY);
@@ -92,7 +93,6 @@ function updatePlayerBullets(dt) {
         else { b.vx *= -1; b.vy *= -1; }
         b.x = prevX + b.vx * dt * 0.8;
         b.y = prevY + b.vy * dt * 0.8;
-        b.range += 90;
         return;
       }
       if (b.rocket) rocketExplode(b.x, b.y);
@@ -149,7 +149,7 @@ function updateEnemyBullets(dt) {
     b.y += b.vy * dt;
     b.distTraveled += Math.hypot(b.vx, b.vy) * dt;
 
-    if (b.distTraveled > b.range || solidAt(b.x, b.y)) {
+    if (solidAt(b.x, b.y)) {
       if (b.fireball) fireballExplode(b);
       b.alive = false;
       return;

@@ -1,8 +1,8 @@
 function createPlayer(x, y) {
   return {
     x, y,
-    w: 22, h: 22,
-    hp: 70, maxHp: 70,
+    w: 24.2, h: 24.2,
+    hp: 40, maxHp: 40,
     speed: 180,
     vx: 0, vy: 0,          // velocity for enemy prediction
     angle: 0,

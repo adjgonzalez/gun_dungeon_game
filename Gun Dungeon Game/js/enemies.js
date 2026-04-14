@@ -30,7 +30,7 @@ const ENEMY_TYPES = {
 };
 
 const BOSS_DEF = {
-  name:'GIANT PINEAPPLE', color:'#f5c842', w:60, h:60,
+  name:'GIANT PINEAPPLE', color:'#f5c842', w:75, h:75,
   hp:2200, speed:55, damage:0, xp:500,
   ai:'boss',
 };
