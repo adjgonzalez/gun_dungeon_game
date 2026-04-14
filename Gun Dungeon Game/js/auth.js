@@ -19,6 +19,28 @@ const API_URL = (() => {
 let authToken = localStorage.getItem('token');
 let currentUser = null;
 
+async function readApiResponse(response) {
+  const raw = await response.text();
+  let data = {};
+
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch (_err) {
+      if (raw.trim().startsWith('<')) {
+        throw new Error('Server returned HTML instead of JSON. This is usually a deployment or proxy issue.');
+      }
+      throw new Error('Server returned an invalid response format.');
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(data.message || `Request failed (${response.status})`);
+  }
+
+  return data;
+}
+
 // Initialize auth on page load
 document.addEventListener('DOMContentLoaded', () => {
   initializeAuth();
@@ -75,11 +97,7 @@ async function handleLogin(e) {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
-    }
+    const data = await readApiResponse(response);
 
     // Save token and user data
     authToken = data.token;
@@ -122,11 +140,7 @@ async function handleRegister(e) {
       body: JSON.stringify({ username, email, password, passwordConfirm })
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Registration failed');
-    }
+    const data = await readApiResponse(response);
 
     // Save token and user data
     authToken = data.token;
@@ -210,7 +224,7 @@ async function updateUserProgress(score, level) {
       body: JSON.stringify({ score, level })
     });
 
-    const data = await response.json();
+    const data = await readApiResponse(response);
     if (response.ok) {
       currentUser = data.user;
       localStorage.setItem('user', JSON.stringify(currentUser));

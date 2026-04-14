@@ -34,7 +34,9 @@ app.use(cors({
       return callback(null, true);
     }
 
-    return callback(new Error('CORS origin not allowed'));
+    // Do not throw here; returning false avoids CORS headers without crashing the request.
+    console.warn(`CORS origin not allowed: ${origin}`);
+    return callback(null, false);
   }
 }));
 app.use(express.json());
