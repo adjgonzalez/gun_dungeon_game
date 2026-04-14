@@ -9,10 +9,25 @@ dotenv.config();
 
 const app = express();
 
+const configuredOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5000',
-  credentials: true
+  origin(origin, callback) {
+    // Allow non-browser clients and same-origin requests without an Origin header.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (configuredOrigins.length === 0 || configuredOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('CORS origin not allowed'));
+  }
 }));
 app.use(express.json());
 app.use(express.static('../Gun Dungeon Game'));

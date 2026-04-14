@@ -1,5 +1,6 @@
 // Authentication System
-const API_URL = 'http://localhost:5000/api/auth';
+// Default to same-origin API for deployed environments; allow override for dev.
+const API_URL = window.__API_BASE_URL__ || '/api/auth';
 let authToken = localStorage.getItem('token');
 let currentUser = null;
 
