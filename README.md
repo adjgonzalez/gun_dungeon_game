@@ -63,6 +63,7 @@ docker compose down -v
 
 ### 5. Deploy notes
 
-- For production, set `CORS_ORIGIN` in `.env` to your deployed URL.
+- For production, set `CORS_ORIGIN` in `.env` to your deployed URL, for example `https://groupd.stu.researchatmun.ca`.
+- If you also want local development on the same backend container, use a comma-separated list such as `http://localhost:3000,https://groupd.stu.researchatmun.ca`.
 - Keep `JWT_SECRET` private and long/random.
 - If your host platform provides managed MongoDB, you can remove the `mongo` service and set `MONGODB_URI` to your managed connection string.
