@@ -7,7 +7,7 @@ Project Group Members:
 
 Project URL
 
-* Paste your hosted web application URL here so I can test it
+* https://groupd.stu.researchatmun.ca
 
 Project Videos:
 
