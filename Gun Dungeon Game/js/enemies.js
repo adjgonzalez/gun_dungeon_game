@@ -82,9 +82,8 @@ function populateRooms() {
     }
 
     const types = Object.keys(ENEMY_TYPES);
-    const total = randInt(4, 8);
-    const wave1Count = Math.max(2, Math.ceil(total * 0.55));
-    const wave2Count = Math.max(2, total - wave1Count);
+    const wave1Count = randInt(5, 10);
+    const wave2Count = randInt(5, 10);
 
     const buildWave = (count, baseDelay) => Array.from({ length: count }, (_, i) => ({
       x: room.tx * TILE + margin + Math.random() * (room.w * TILE - margin * 2),
