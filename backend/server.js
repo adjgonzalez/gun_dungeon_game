@@ -9,6 +9,14 @@ dotenv.config();
 
 const app = express();
 
+if (!process.env.JWT_SECRET) {
+  console.warn('JWT_SECRET is not set. Authentication token generation will fail.');
+}
+
+if (!process.env.MONGODB_URI) {
+  console.warn('MONGODB_URI is not set. MongoDB will default to localhost, which may fail in deployment.');
+}
+
 const configuredOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(origin => origin.trim())
