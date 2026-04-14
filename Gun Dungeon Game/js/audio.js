@@ -139,18 +139,32 @@ function audioStartMusic() {
   if (!ensureAudioStarted()) return;
   if (gameAudio.musicTimer) return;
 
-  const melody = [220, 262, 294, 330, 294, 262, 196, 196];
-  const bass = [110, 98, 123, 110];
+  // Fast 8th-note rock groove with power-chord riff and simple kick/snare accents.
+  const riff = [110, 110, 147, 110, 165, 147, 123, 98];
+  const bass = [55, 55, 73, 55, 82, 73, 61, 49];
+  const kickPattern = [1, 0, 1, 0, 1, 0, 1, 0];
+  const snarePattern = [0, 0, 1, 0, 0, 0, 1, 0];
 
   gameAudio.musicStep = 0;
   gameAudio.musicTimer = setInterval(() => {
     const step = gameAudio.musicStep++;
-    const m = melody[step % melody.length];
+    const idx = step % riff.length;
+    const root = riff[idx];
     const b = bass[step % bass.length];
 
-    playTone(m, 0.22, { type: 'triangle', volume: 0.035, music: true });
-    playTone(b, 0.28, { type: 'sine', volume: 0.03, music: true });
-  }, 280);
+    // Power chord (root + fifth) for guitar-like drive.
+    playTone(root, 0.16, { type: 'sawtooth', volume: 0.035, music: true });
+    playTone(root * 1.5, 0.14, { type: 'square', volume: 0.022, music: true });
+    playTone(b, 0.2, { type: 'triangle', volume: 0.03, music: true });
+
+    if (kickPattern[idx]) {
+      playNoiseBurst(0.04, 0.03);
+      playTone(60, 0.05, { type: 'sine', volume: 0.018, music: true });
+    }
+    if (snarePattern[idx]) {
+      playNoiseBurst(0.055, 0.045);
+    }
+  }, 170);
 }
 
 function audioStopMusic() {

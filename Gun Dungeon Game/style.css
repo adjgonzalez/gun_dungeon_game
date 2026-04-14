@@ -133,7 +133,7 @@ button:hover {
   width: 180px;
   padding: 18px 12px;
   background: #1a1a2e;
-  border: 2px solid #4af;
+  border: 2px solid #fff;
   border-radius: 8px;
   cursor: pointer;
   text-align: center;
@@ -142,11 +142,26 @@ button:hover {
 .buff-card:hover {
   background: #0f3460;
   transform: scale(1.05);
-  box-shadow: 0 0 18px #4af;
+  box-shadow: 0 0 14px rgba(255,255,255,0.5);
 }
 .buff-card .buff-icon { font-size: 36px; margin-bottom: 8px; }
-.buff-card .buff-name { font-size: 14px; font-weight: bold; color: #4af; margin-bottom: 6px; }
+.buff-card .buff-name { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 4px; }
+.buff-card .buff-rarity { font-size: 10px; letter-spacing: 1px; margin-bottom: 6px; color: #ddd; }
 .buff-card .buff-desc { font-size: 12px; color: #aaa; }
+
+.buff-card.buff-common { border-color: #ffffff; }
+.buff-card.buff-common .buff-name,
+.buff-card.buff-common .buff-rarity { color: #ffffff; }
+
+.buff-card.buff-rare { border-color: #4aa8ff; }
+.buff-card.buff-rare .buff-name,
+.buff-card.buff-rare .buff-rarity { color: #4aa8ff; }
+.buff-card.buff-rare:hover { box-shadow: 0 0 16px rgba(74,168,255,0.7); }
+
+.buff-card.buff-legendary { border-color: #f5c842; }
+.buff-card.buff-legendary .buff-name,
+.buff-card.buff-legendary .buff-rarity { color: #f5c842; }
+.buff-card.buff-legendary:hover { box-shadow: 0 0 18px rgba(245,200,66,0.8); }
 
 /* Authentication Screens */
 .auth-screen {

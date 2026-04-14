@@ -499,7 +499,7 @@ function aiFish(e, dt, dx, dy, d) {
   }
 
   // Shoot at current player position — no prediction
-  e.fireCooldown -= dt * 1000;
+  e.fireCooldown -= dt * 1000 * (e.slowAttackMult || 1);
   if (e.fireCooldown <= 0 && d < 500) {
     e.fireCooldown = e.fireRate;
     fireEnemyBullet(e.x, e.y, e.angle, e.bulletSpeed, e.bulletDamage);
@@ -524,7 +524,7 @@ function aiMiniOven(e, dt, dx, dy, d) {
   // If action === 'attack' and in preferred range: stand still and lob
 
   // Shoot predicted fireball
-  e.fireCooldown -= dt * 1000;
+  e.fireCooldown -= dt * 1000 * (e.slowAttackMult || 1);
   if (e.fireCooldown <= 0 && d < 550) {
     e.fireCooldown = e.fireRate;
     const player     = state.player;
@@ -543,6 +543,24 @@ function updateEnemy(e, dt) {
   }
   if (!e.alive) return;
 
+  // Timed status effects.
+  if ((e.burnTimer || 0) > 0) {
+    e.burnTimer -= dt;
+    e.hp -= (e.burnDps || 0) * dt;
+    if (e.hp <= 0) {
+      defeatEnemy(e);
+      return;
+    }
+  }
+  if ((e.slowTimer || 0) > 0) {
+    e.slowTimer -= dt;
+    if (e.slowTimer <= 0) {
+      e.slowTimer = 0;
+      e.slowMoveMult = 1;
+      e.slowAttackMult = 1;
+    }
+  }
+
   const player = state.player;
   const dx = player.x - e.x;
   const dy = player.y - e.y;
@@ -558,6 +576,8 @@ function updateEnemy(e, dt) {
 
   // ── 3. Type-specific AI (skipped only when BT issued an interrupt) ─────────
   if (!btHandled) {
+    const baseSpeed = e.speed;
+    e.speed = baseSpeed * (e.slowMoveMult || 1);
     switch (e.ai) {
       case 'pineapple': aiPineapple(e, dt, dx, dy, d); break;
       case 'meatball':  aiMeatball (e, dt, dx, dy, d); break;
@@ -565,6 +585,7 @@ function updateEnemy(e, dt) {
       case 'mini_oven': aiMiniOven (e, dt, dx, dy, d); break;
       case 'boss':      updateBoss (e, dt, dx, dy, d); break;
     }
+    e.speed = baseSpeed;
   }
 
   // Anti-stuck nudge: if an enemy barely moves for too long, push it sideways.
@@ -590,9 +611,42 @@ function updateEnemy(e, dt) {
 
 function coinDrop(e) {
   const base = { pineapple_slice:1, fish:1, meatball:2, mini_oven:2, boss:20 };
-  const amount = (base[e.type] || 1) + (Math.random() < (state.player?.luck || 0) * 0.08 ? 1 : 0);
+  const amount = (base[e.type] || 1)
+    + (Math.random() < (state.player?.luck || 0) * 0.08 ? 1 : 0)
+    + (state.player?.coinBonusPerKill || 0);
   state.runCoins = (state.runCoins || 0) + amount;
   spawnFloatingText(e.x, e.y - 16, `+${amount}🪙`, '#f5c842');
+}
+
+function defeatEnemy(e) {
+  if (!e.alive) return;
+  e.alive = false;
+  coinDrop(e);
+  if (typeof audioPlayEnemyDown === 'function') {
+    audioPlayEnemyDown();
+  }
+  spawnXpOrb(e.x, e.y, e.xp);
+  spawnParticles(e.x, e.y, e.color, 16);
+}
+
+function applyBulletDebuffs(enemy) {
+  const p = state.player;
+  if (!p) return;
+
+  if (p.onHitSlowMove > 0) {
+    enemy.slowMoveMult = Math.min(enemy.slowMoveMult || 1, p.onHitSlowMove);
+    enemy.slowTimer = Math.max(enemy.slowTimer || 0, 2.25);
+  }
+
+  if (p.onHitSlowAttack > 0) {
+    enemy.slowAttackMult = Math.min(enemy.slowAttackMult || 1, p.onHitSlowAttack);
+    enemy.slowTimer = Math.max(enemy.slowTimer || 0, 2.25);
+  }
+
+  if (p.onHitBurnChance > 0 && Math.random() < p.onHitBurnChance) {
+    enemy.burnTimer = Math.max(enemy.burnTimer || 0, 4);
+    enemy.burnDps = Math.max(enemy.burnDps || 0, p.onHitBurnDps || 1);
+  }
 }
 
 function separateEntities() {
@@ -656,7 +710,7 @@ function updateEnemyContact(dt) {
     const dy = player.y - e.y;
     const d  = Math.hypot(dx, dy);
     if (d < minDist) {
-      damagePlayer(e.damage * dt * 3);
+      damagePlayer(e.damage * (e.slowAttackMult || 1) * dt * 3);
     }
   });
 }

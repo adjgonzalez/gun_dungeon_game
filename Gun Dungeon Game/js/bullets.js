@@ -26,16 +26,21 @@ function rocketExplode(x, y) {
     const d = Math.hypot(e.x - x, e.y - y);
     if (d < w.splashRadius) {
       const falloff = 1 - d / w.splashRadius;
-      e.hp -= splashDmg * falloff;
+      const dealt = Math.min(e.hp, splashDmg * falloff);
+      e.hp -= dealt;
+      if ((state.player?.lifesteal || 0) > 0 && dealt > 0) {
+        state.player.hp = Math.min(state.player.maxHp, state.player.hp + dealt * state.player.lifesteal);
+      }
+      if (typeof applyBulletDebuffs === 'function') {
+        applyBulletDebuffs(e);
+      }
       spawnParticles(e.x, e.y, e.color, 8);
       if (e.hp <= 0) {
-        e.alive = false;
-        coinDrop(e);
-        if (typeof audioPlayEnemyDown === 'function') {
-          audioPlayEnemyDown();
+        if (typeof defeatEnemy === 'function') {
+          defeatEnemy(e);
+        } else {
+          e.alive = false;
         }
-        spawnXpOrb(e.x, e.y, e.xp);
-        spawnParticles(e.x, e.y, e.color, 16);
       }
     }
   });
@@ -69,11 +74,25 @@ function fireEnemyFireball(x, y, targetX, targetY, speed, damage) {
 function updatePlayerBullets(dt) {
   state.bullets.forEach(b => {
     if (!b.alive) return;
+    const prevX = b.x;
+    const prevY = b.y;
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.distTraveled += Math.hypot(b.vx, b.vy) * dt;
 
     if (b.distTraveled > b.range || solidAt(b.x, b.y)) {
+      if (!b.rocket && state.player?.bounceOnce && !b.bounced && solidAt(b.x, b.y)) {
+        b.bounced = true;
+        const hitX = solidAt(prevX, b.y);
+        const hitY = solidAt(b.x, prevY);
+        if (hitX && !hitY) b.vx *= -1;
+        else if (hitY && !hitX) b.vy *= -1;
+        else { b.vx *= -1; b.vy *= -1; }
+        b.x = prevX + b.vx * dt * 0.8;
+        b.y = prevY + b.vy * dt * 0.8;
+        b.range += 90;
+        return;
+      }
       if (b.rocket) rocketExplode(b.x, b.y);
       else spawnParticles(b.x, b.y, '#ffe066', 4);
       b.alive = false;
@@ -88,21 +107,26 @@ function updatePlayerBullets(dt) {
           b.alive = false;
           return;
         }
-        e.hp -= b.damage;
+        const dealt = Math.min(e.hp, b.damage);
+        e.hp -= dealt;
+        if ((state.player?.lifesteal || 0) > 0 && dealt > 0) {
+          state.player.hp = Math.min(state.player.maxHp, state.player.hp + dealt * state.player.lifesteal);
+        }
+        if (typeof applyBulletDebuffs === 'function') {
+          applyBulletDebuffs(e);
+        }
         if (typeof audioPlayEnemyHit === 'function') {
           audioPlayEnemyHit();
         }
         spawnParticles(e.x, e.y, e.color, 6);
-        if (b.pierceLeft <= 0) b.alive = false;
+        if (b.pierceLeft <= 0 && !(state.player?.pierceAll)) b.alive = false;
         else b.pierceLeft--;
         if (e.hp <= 0) {
-          e.alive = false;
-          coinDrop(e);
-          if (typeof audioPlayEnemyDown === 'function') {
-            audioPlayEnemyDown();
+          if (typeof defeatEnemy === 'function') {
+            defeatEnemy(e);
+          } else {
+            e.alive = false;
           }
-          spawnXpOrb(e.x, e.y, e.xp);
-          spawnParticles(e.x, e.y, e.color, 16);
         }
       }
     });
