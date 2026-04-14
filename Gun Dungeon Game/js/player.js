@@ -22,6 +22,17 @@ function createPlayer(x, y) {
     level:   1,
     alive:       true,
     invincible:  0,
+    dodgeChance:    0,
+    luck:           0,
+    shieldCooldown: 0,
+    shieldMaxHp:    0,
+    shieldHp:       0,
+    shieldTimer:    0,
+    critChance:     0.05,
+    critDamage:     1.5,
+    xpMultiplier:   1.0,
+    weaponDmgBonus:  [0, 0, 0],   // per-weapon flat damage bonus from upgrades
+    weaponRateBonus: [0, 0, 0],   // per-weapon fire-rate reduction factor (0–1)
     appliedBuffs: [],
   };
 }
@@ -74,6 +85,16 @@ function updatePlayer(dt) {
 
   // Invincibility cooldown
   if (player.invincible > 0) player.invincible -= dt;
+
+  // Shield recharge
+  if (player.shieldMaxHp > 0 && player.shieldHp < player.shieldMaxHp) {
+    if (player.shieldTimer > 0) {
+      player.shieldTimer -= dt;
+    } else {
+      player.shieldHp = player.shieldMaxHp;
+      spawnFloatingText(player.x, player.y - 30, 'SHIELD!', '#4af');
+    }
+  }
 }
 
 function playerShoot(dt) {
@@ -90,7 +111,12 @@ function playerShoot(dt) {
   const speedRatio     = player.bulletSpeed   / base.bulletSpeed;
   const rangeRatio     = player.bulletRange   / base.bulletRange;
 
-  player.fireCooldown = w.fireRate * fireRateRatio;
+  // Weapon-specific upgrade bonuses
+  const wIdx      = player.weaponIdx;
+  const dmgBonus  = player.weaponDmgBonus[wIdx]  || 0;  // flat damage per pellet
+  const rateBonus = player.weaponRateBonus[wIdx]  || 0;  // fire-rate reduction factor
+
+  player.fireCooldown = w.fireRate * fireRateRatio * (1 - rateBonus);
 
   const cam       = state.cam;
   const baseAngle = Math.atan2((mouse.y + cam.y) - player.y, (mouse.x + cam.x) - player.x);
@@ -98,14 +124,51 @@ function playerShoot(dt) {
 
   for (let i = 0; i < pellets; i++) {
     const offset = pellets > 1 ? (i / (pellets - 1) - 0.5) * 2 * w.spread : 0;
+    const isCrit   = Math.random() < player.critChance;
+    const dmgMult  = isCrit ? player.critDamage * damageRatio : damageRatio;
+    if (isCrit) spawnFloatingText(player.x, player.y - 20, 'CRIT!', '#ffd700');
     fireBullet(
       player.x, player.y,
       baseAngle + offset,
-      w.bulletSpeed  * speedRatio,
-      w.bulletDamage * damageRatio,
+      w.bulletSpeed * speedRatio,
+      (w.bulletDamage + dmgBonus) * dmgMult,
       w.bulletRange  * rangeRatio,
       w.rocket ? 0 : player.pierce,
       w.rocket,
     );
   }
+}
+
+// Unified damage handler — checks dodge, shield, invincibility, then applies HP damage
+function damagePlayer(amount) {
+  const p = state.player;
+  if (!p || !p.alive || p.invincible > 0) return false;
+
+  // Dodge roll
+  if (p.dodgeChance > 0 && Math.random() < p.dodgeChance) {
+    spawnFloatingText(p.x, p.y - 24, 'DODGE!', '#0ff');
+    p.invincible = 0.35;
+    return false;
+  }
+
+  let dmg = amount;
+
+  // Shield absorption
+  if (p.shieldHp > 0) {
+    const absorbed = Math.min(p.shieldHp, dmg);
+    p.shieldHp -= absorbed;
+    dmg        -= absorbed;
+    if (p.shieldHp <= 0 && p.shieldCooldown > 0) {
+      p.shieldTimer = p.shieldCooldown;
+      spawnFloatingText(p.x, p.y - 24, 'SHIELD BREAK', '#f80');
+    }
+    spawnParticles(p.x, p.y, '#4af', 5);
+    if (dmg <= 0) { p.invincible = 0.2; return false; }
+  }
+
+  p.hp        -= dmg;
+  p.invincible = 0.4;
+  spawnParticles(p.x, p.y, '#f44', 8);
+  if (p.hp <= 0) { p.alive = false; endGame(false); }
+  return true;
 }

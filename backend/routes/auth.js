@@ -49,7 +49,9 @@ router.post('/register', async (req, res) => {
         username: user.username,
         email: user.email,
         score: user.score,
-        level: user.level
+        level: user.level,
+        coins: user.coins,
+        upgrades: user.upgrades
       }
     });
   } catch (error) {
@@ -92,11 +94,13 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email,
         score: user.score,
-        level: user.level
+        level: user.level,
+        coins: user.coins,
+        upgrades: user.upgrades
       }
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       message: error.message || 'Error logging in'
     });
   }
@@ -121,7 +125,9 @@ router.get('/me', async (req, res) => {
         username: user.username,
         email: user.email,
         score: user.score,
-        level: user.level
+        level: user.level,
+        coins: user.coins,
+        upgrades: user.upgrades
       }
     });
   } catch (error) {
@@ -154,11 +160,44 @@ router.put('/update-progress', async (req, res) => {
         username: user.username,
         email: user.email,
         score: user.score,
-        level: user.level
+        level: user.level,
+        coins: user.coins,
+        upgrades: user.upgrades
       }
     });
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error updating progress' });
+  }
+});
+
+// GET /upgrades — load player's coins and upgrades
+router.get('/upgrades', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    res.status(200).json({ success: true, coins: user.coins, upgrades: user.upgrades });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error fetching upgrades' });
+  }
+});
+
+// PUT /upgrades — save player's coins and upgrades
+router.put('/upgrades', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { coins, upgrades } = req.body;
+    const user = await User.findByIdAndUpdate(
+      decoded.id,
+      { coins, upgrades },
+      { new: true }
+    );
+    res.status(200).json({ success: true, coins: user.coins, upgrades: user.upgrades });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error saving upgrades' });
   }
 });
 

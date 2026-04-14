@@ -158,14 +158,15 @@ function showRegisterScreen() {
 }
 
 function showStartScreen() {
+  loadUpgradesFromServer();  // refresh coins/upgrades display
   document.getElementById('screen-login').classList.add('hidden');
   document.getElementById('screen-register').classList.add('hidden');
   document.getElementById('screen-start').classList.remove('hidden');
-  
+
   // Display user info
   if (currentUser) {
     const userInfo = document.getElementById('user-info');
-    userInfo.innerHTML = `<p>Welcome, <span style="color: #ffd700;">${currentUser.username}</span>!</p><p>Level: <span style="color: #4f4;">${currentUser.level}</span> | Score: <span style="color: #f44;">${currentUser.score}</span></p>`;
+    userInfo.innerHTML = `<p>Welcome, <span style="color: #ffd700;">${currentUser.username}</span>!</p><p>Level: <span style="color: #4f4;">${currentUser.level}</span> | Score: <span style="color: #f44;">${currentUser.score}</span></p><p style="color:#f5c842;">🪙 <span id="menu-coins">Loading...</span></p>`;
   }
 }
 

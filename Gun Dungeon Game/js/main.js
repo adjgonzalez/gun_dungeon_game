@@ -8,6 +8,7 @@ function update(ts) {
   }
 
   updatePlayer(dt);
+  updateDirector(dt);
   updateCurrentRoom();
 
   // Lock doors once the player has walked far enough from any room edge
@@ -40,12 +41,16 @@ function update(ts) {
 
   updatePlayerBullets(dt);
   updateEnemyBullets(dt);
+  updateFloorSpikes(dt);
   applyQueuedPlayerDamage();
   updateXpOrbs(dt);
   updateParticles(dt);
+  state.floatingTexts.forEach(t => { t.y += t.vy * dt; t.life -= dt * 0.9; });
+  state.floatingTexts = state.floatingTexts.filter(t => t.life > 0);
 
   checkRoomClear();
   if (state.bossUnlockNotif > 0) state.bossUnlockNotif -= dt;
+  if (state.pressureNotif   > 0) state.pressureNotif   -= dt;
   updateCamera(state.player);
   updateHUD();
 
@@ -53,14 +58,18 @@ function update(ts) {
   const { ctx, canvas } = state;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawTiles();
+  drawFloorSpikes();
   drawXpOrbs();
   drawParticles();
+  drawFloatingTexts();
   drawBullets();
   state.enemies.forEach(drawEntity);
   drawEntity(state.player);
+  drawBossSpecialFX();
   drawLowHPFlash(ts);
   drawBossHPBar();
   drawBossUnlockBanner();
+  drawPressureBanner();
   drawWeaponSelector();
   drawRoomClearFlash();
   drawMinimap();
@@ -84,6 +93,8 @@ function startGame() {
   state.enemies      = [];
   state.particles    = [];
   state.xpOrbs       = [];
+  state.floorSpikes  = [];
+  state.runCoins     = 0;
   state.paused       = false;
   state.lockPending  = false;
   state.lockRoomIdx  = -1;
@@ -93,6 +104,7 @@ function startGame() {
 
   const spawn    = state.rooms[state.spawnRoomIdx];
   state.player   = createPlayer(spawn.cx, spawn.cy);
+  applyUpgradesToPlayer(state.player);
   state.cam.x    = state.player.x - state.canvas.width  / 2;
   state.cam.y    = state.player.y - state.canvas.height / 2;
   state.currentRoom = state.spawnRoomIdx;
@@ -141,6 +153,7 @@ function quitGame() {
 
 function endGame(won) {
   state.paused = true;
+  bankRunCoins(state.runCoins || 0);
   const title = document.getElementById('gameover-title');
   const msg   = document.getElementById('gameover-msg');
   
