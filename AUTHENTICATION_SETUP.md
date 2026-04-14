@@ -53,9 +53,9 @@ cp .env.example .env
 ```
 MONGODB_URI=mongodb://localhost:27017/gun_dungeon_game
 JWT_SECRET=your_secret_key_change_this_in_production
-PORT=5000
+PORT=3000
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:5000
+CORS_ORIGIN=http://localhost:3000
 ```
 
 **Important Security Notes:**
@@ -104,7 +104,7 @@ npm run dev
 You should see:
 ```
 ✓ MongoDB Connected
-Server running on http://localhost:5000
+Server running on http://localhost:3000
 ```
 
 ### Step 5: Run the Frontend Game
@@ -124,7 +124,7 @@ Server running on http://localhost:5000
    - **VS Code Live Server**: Install extension and right-click index.html → "Open with Live Server"
 
 2. Open your browser and navigate to:
-   - `http://localhost:5000` (if using Express static serving)
+   - `http://localhost:3000` (if using Express static serving)
    - `http://localhost:8000` (if using another server)
    - `http://127.0.0.1:5500` (if using VS Code Live Server)
 
@@ -230,7 +230,7 @@ handleLogout()                    // Handle logout
 ## Troubleshooting
 
 ### "Failed to fetch" or CORS errors
-- Ensure backend server is running on `http://localhost:5000`
+- Ensure backend server is running on `http://localhost:3000`
 - Check `CORS_ORIGIN` in `.env` matches your frontend URL
 - Try hard-refresh (Ctrl+Shift+R)
 
@@ -244,8 +244,8 @@ handleLogout()                    // Handle logout
 - Log in again to get a fresh token
 
 ### Server crashes with "Port already in use"
-- Change `PORT` in `.env` (e.g., 5001)
-- Or kill existing process on port 5000
+- Change `PORT` in `.env` (e.g., 3001)
+- Or kill existing process on port 3000
 
 ## Development Tips
 
@@ -255,12 +255,12 @@ Use a tool like [Postman](https://www.postman.com/) or `curl` to test endpoints:
 
 ```bash
 # Register
-curl -X POST http://localhost:5000/api/auth/register \
+curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"test","email":"test@example.com","password":"123456","passwordConfirm":"123456"}'
 
 # Login
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"123456"}'
 ```

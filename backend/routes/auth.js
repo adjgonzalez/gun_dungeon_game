@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 
@@ -6,14 +7,25 @@ const router = express.Router();
 
 // Helper function to create JWT token
 const generateToken = (id) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('Server misconfigured: JWT_SECRET is missing');
+  }
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d'
   });
 };
 
+const ensureDatabaseConnected = () => {
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error('Database is not connected');
+  }
+};
+
 // Register endpoint
 router.post('/register', async (req, res) => {
   try {
+    ensureDatabaseConnected();
     const { username, email, password, passwordConfirm } = req.body;
 
     // Validation
@@ -64,6 +76,7 @@ router.post('/register', async (req, res) => {
 // Login endpoint
 router.post('/login', async (req, res) => {
   try {
+    ensureDatabaseConnected();
     const { email, password } = req.body;
 
     // Validation
@@ -109,6 +122,7 @@ router.post('/login', async (req, res) => {
 // Get current user (protected route)
 router.get('/me', async (req, res) => {
   try {
+    ensureDatabaseConnected();
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
@@ -138,6 +152,7 @@ router.get('/me', async (req, res) => {
 // Update user score and level
 router.put('/update-progress', async (req, res) => {
   try {
+    ensureDatabaseConnected();
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
