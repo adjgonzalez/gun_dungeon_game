@@ -78,28 +78,33 @@ function updatePlayerBullets(dt) {
     if (!b.alive) return;
     const prevX = b.x;
     const prevY = b.y;
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
+    const nextX = b.x + b.vx * dt;
+    const nextY = b.y + b.vy * dt;
     b.distTraveled += Math.hypot(b.vx, b.vy) * dt;
 
-    const hitWall = solidAt(b.x, b.y);
+    const hitWall = solidAt(nextX, nextY);
     if (hitWall) {
       if (!b.rocket && state.player?.bounceOnce && !b.bounced) {
         b.bounced = true;
-        const hitX = solidAt(prevX, b.y);
-        const hitY = solidAt(b.x, prevY);
+        const hitX = solidAt(nextX, prevY);
+        const hitY = solidAt(prevX, nextY);
         if (hitX && !hitY) b.vx *= -1;
         else if (hitY && !hitX) b.vy *= -1;
         else { b.vx *= -1; b.vy *= -1; }
-        b.x = prevX + b.vx * dt * 0.8;
-        b.y = prevY + b.vy * dt * 0.8;
+        b.x = prevX + b.vx * dt * 0.25;
+        b.y = prevY + b.vy * dt * 0.25;
         return;
       }
+      b.x = nextX;
+      b.y = nextY;
       if (b.rocket) rocketExplode(b.x, b.y);
       else spawnParticles(b.x, b.y, '#ffe066', 4);
       b.alive = false;
       return;
     }
+
+    b.x = nextX;
+    b.y = nextY;
 
     state.enemies.forEach(e => {
       if (!e.alive || !b.alive) return;
