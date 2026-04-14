@@ -405,7 +405,7 @@ function fireEnemySpikeAt(x, y, angle, speed, damage) {
     x, y,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
-    damage, alive:true, w:8, h:8,
+    damage, alive:true, w:12, h:12,
     range:720, distTraveled:0,
     fireball:false, spike:true,
   });

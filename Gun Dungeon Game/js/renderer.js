@@ -593,14 +593,17 @@ function drawBullets() {
       ctx.fillStyle  = '#f5c842';
       ctx.shadowBlur = 8; ctx.shadowColor = '#b88a00';
       ctx.beginPath();
-      ctx.moveTo( 8,  0);
-      ctx.lineTo(-5,  4);
-      ctx.lineTo(-5, -4);
+      ctx.moveTo(10,  0);
+      ctx.lineTo(-7,  5);
+      ctx.lineTo(-7, -5);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
       ctx.fillStyle = '#b88a00';
       ctx.beginPath();
-      ctx.moveTo(8, 0); ctx.lineTo(-5, 4); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+      ctx.moveTo(10, 0); ctx.lineTo(-7, 5); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
       ctx.restore();
       ctx.shadowBlur = 0;
     } else {

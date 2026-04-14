@@ -6,6 +6,12 @@ function hasBuff(id) {
   return state.player.appliedBuffs.includes(id);
 }
 
+const LEVEL_UP_RARITY_WEIGHTS = {
+  common: 50,
+  rare: 30,
+  legendary: 20,
+};
+
 const BUFFS_DEF = [
   // Character commons
   {
@@ -158,40 +164,65 @@ const BUFFS_DEF = [
   },
 ];
 
-function pickBuffChoices() {
-  const player = state.player;
-  const milestone = player.level % 5 === 0;
-  const eligible = BUFFS_DEF.filter((b) => {
-    if (typeof b.isAvailable === 'function' && !b.isAvailable()) return false;
-    if (milestone) return b.rarity !== 'common';
-    return b.rarity === 'common';
-  });
+function pickRandomBuffByRarity(pool, rarity) {
+  const candidates = pool.filter(b => b.rarity === rarity);
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
 
-  if (!milestone) {
-    const shuffled = [...eligible].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(3, shuffled.length));
+function removeBuffFromPool(pool, buff) {
+  const idx = pool.findIndex(b => b.id === buff.id);
+  if (idx >= 0) pool.splice(idx, 1);
+}
+
+function rollBuffRarity(pool) {
+  const availableRarities = ['common', 'rare', 'legendary']
+    .filter(rarity => pool.some(buff => buff.rarity === rarity));
+  if (availableRarities.length === 0) return null;
+
+  const totalWeight = availableRarities
+    .reduce((sum, rarity) => sum + LEVEL_UP_RARITY_WEIGHTS[rarity], 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const rarity of availableRarities) {
+    roll -= LEVEL_UP_RARITY_WEIGHTS[rarity];
+    if (roll <= 0) return rarity;
   }
 
-  // Milestone levels: weighted rarity selection (mostly Rare, occasional Legendary).
-  const pool = [...eligible];
+  return availableRarities[availableRarities.length - 1];
+}
+
+function pickBuffChoices() {
+  const player = state.player;
+  const pool = BUFFS_DEF.filter((b) => {
+    if (typeof b.isAvailable === 'function' && !b.isAvailable()) return false;
+    return true;
+  });
+
   const picks = [];
   const target = Math.min(3, pool.length);
+  const guaranteedRarities = [];
+
+  if (player.level % 3 === 0) guaranteedRarities.push('rare');
+  if (player.level % 5 === 0) guaranteedRarities.push('legendary');
+
+  guaranteedRarities.forEach((rarity) => {
+    if (picks.length >= target) return;
+    const chosen = pickRandomBuffByRarity(pool, rarity);
+    if (!chosen) return;
+    picks.push(chosen);
+    removeBuffFromPool(pool, chosen);
+  });
 
   while (picks.length < target && pool.length > 0) {
-    const rares = pool.filter(b => b.rarity === 'rare');
-    const legendaries = pool.filter(b => b.rarity === 'legendary');
+    const rarity = rollBuffRarity(pool);
+    if (!rarity) break;
 
-    let desiredRarity = Math.random() < 0.8 ? 'rare' : 'legendary';
-    if (desiredRarity === 'rare' && rares.length === 0) desiredRarity = 'legendary';
-    if (desiredRarity === 'legendary' && legendaries.length === 0) desiredRarity = 'rare';
+    const chosen = pickRandomBuffByRarity(pool, rarity);
+    if (!chosen) break;
 
-    const candidates = desiredRarity === 'rare' ? rares : legendaries;
-    if (candidates.length === 0) break;
-
-    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
     picks.push(chosen);
-    const idx = pool.findIndex(b => b.id === chosen.id);
-    if (idx >= 0) pool.splice(idx, 1);
+    removeBuffFromPool(pool, chosen);
   }
 
   return picks;
