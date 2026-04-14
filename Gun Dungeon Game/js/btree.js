@@ -74,8 +74,8 @@ function _executeDodge(e, dt) {
 // ── Interrupt: Low-HP Flee ────────────────────────────────────────────────────
 
 function _isLowHp(e) {
-  // Only melee types flee — ranged types already back away in their own AI
-  return (e.type === 'pineapple_slice') && e.hp / e.maxHp < 0.20;
+  // Aggression-first behavior: disable flee interrupt.
+  return false;
 }
 
 function _executeFlee(e, dt) {

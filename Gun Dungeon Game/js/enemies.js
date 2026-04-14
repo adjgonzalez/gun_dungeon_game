@@ -31,7 +31,7 @@ const ENEMY_TYPES = {
 
 const BOSS_DEF = {
   name:'GIANT PINEAPPLE', color:'#f5c842', w:60, h:60,
-  hp:1500, speed:55, damage:0, xp:500,
+  hp:2200, speed:55, damage:0, xp:500,
   ai:'boss',
 };
 
@@ -68,6 +68,8 @@ function populateRooms() {
   state.rooms.forEach(room => {
     room.enemies    = [];
     room.spawnQueue = [];
+    room.pendingWaves = [];
+    room.currentWave = 0;
     if (room.type === 'start') return;
 
     if (room.type === 'boss') {
@@ -80,17 +82,27 @@ function populateRooms() {
     }
 
     const types = Object.keys(ENEMY_TYPES);
-    const count = randInt(3, 7);
-    room.spawnQueue = Array.from({ length: count }, (_, i) => ({
+    const total = randInt(4, 8);
+    const wave1Count = Math.max(2, Math.ceil(total * 0.55));
+    const wave2Count = Math.max(2, total - wave1Count);
+
+    const buildWave = (count, baseDelay) => Array.from({ length: count }, (_, i) => ({
       x: room.tx * TILE + margin + Math.random() * (room.w * TILE - margin * 2),
       y: room.ty * TILE + margin + Math.random() * (room.h * TILE - margin * 2),
       type: choice(types),
-      delay: 0.5 + i * 0.35,
+      delay: baseDelay + i * 0.35,
     }));
+
+    room.pendingWaves = [
+      buildWave(wave1Count, 0.5),
+      buildWave(wave2Count, 0.8),
+    ];
+    room.spawnQueue = room.pendingWaves.shift() || [];
   });
 }
 
 function triggerRoomSpawn(room) {
+  room.currentWave = (room.currentWave || 0) + 1;
   room.spawnQueue.forEach((sq) => {
     const def = sq.type === 'boss' ? BOSS_DEF : ENEMY_TYPES[sq.type];
     room.enemies.push({
@@ -128,6 +140,7 @@ function triggerRoomSpawn(room) {
         bossCurrentSpecial: null,
         bossSpecialData:    {},
         bossEnraged:        false,
+        bossInvulnTimer:    1.8,
       });
     }
   });
@@ -138,6 +151,9 @@ function triggerRoomSpawn(room) {
 // ── Boss AI ────────────────────────────────────────────────────────────────────
 
 function updateBoss(e, dt, dx, dy, d) {
+  if ((e.bossInvulnTimer || 0) > 0) {
+    e.bossInvulnTimer = Math.max(0, e.bossInvulnTimer - dt);
+  }
   _bossCheckPhase(e);
   const cfg = BOSS_PHASE_CONFIG[e.bossPhase];
 
@@ -172,6 +188,9 @@ function _bossCheckPhase(e) {
   if (hp < 0.65 && e.bossPhase === 1) {
     e.bossPhase = 2;
     e.speed     = e.bossBaseSpeed * 1.2;
+    e.bossInvulnTimer = Math.max(e.bossInvulnTimer || 0, 1.35);
+    e.bossAttackState = 'special_recovery';
+    e.bossSpecialTimer = Math.max(e.bossSpecialTimer || 0, 0.7);
     spawnFloatingText(e.x, e.y - 60, 'PHASE 2', '#ff8800');
     spawnParticles(e.x, e.y, '#ff8800', 40);
   }
@@ -180,6 +199,9 @@ function _bossCheckPhase(e) {
     e.speed        = e.bossBaseSpeed * 1.5;
     e.bossEnraged  = true;
     e.bossBasicsPerCycle = randInt(1, 2);
+    e.bossInvulnTimer = Math.max(e.bossInvulnTimer || 0, 1.75);
+    e.bossAttackState = 'special_recovery';
+    e.bossSpecialTimer = Math.max(e.bossSpecialTimer || 0, 0.9);
     spawnFloatingText(e.x, e.y - 60, 'ENRAGED!', '#ff0000');
     spawnParticles(e.x, e.y, '#ff0000', 60);
     spawnParticles(e.x, e.y, '#ff8800', 30);
@@ -309,6 +331,7 @@ function _bossActivateSpecial(e, dx, dy, d, cfg) {
       const sy = clamp(e.y + Math.sin(a) * 90, room.ty * TILE + 60, (room.ty + room.h) * TILE - 60);
       _spawnBossSlice(room, sx, sy);
     }
+    e.bossInvulnTimer = Math.max(e.bossInvulnTimer || 0, 1.2);
     e.bossAttackState  = 'special_recovery';
     e.bossSpecialTimer = 0.4;
 
@@ -412,25 +435,10 @@ function updateFloorSpikes(dt) {
 // adjust their movement / attack decisions accordingly.
 
 function aiPineapple(e, dt, dx, dy, d) {
-  const action = e.utilityAction || 'chase';
-  const role   = e.role          || 'aggressor';
-
-  if (action === 'retreat') {
-    // Critical HP — run away
-    moveWithCollision(e, -(dx / d) * e.speed * 1.3 * dt, -(dy / d) * e.speed * 1.3 * dt);
-    return;
+  // Aggressive melee behavior: always pressure the player.
+  if (d > e.w * 0.7) {
+    moveWithCollision(e, (dx / d) * e.speed * 1.06 * dt, (dy / d) * e.speed * 1.06 * dt);
   }
-
-  if (role === 'flanker' && e.flankTarget) {
-    // Approach from the director-assigned flanking angle
-    const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
-    const fd  = Math.hypot(fdx, fdy) || 1;
-    if (fd > 24) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
-    return;
-  }
-
-  // Default: fast direct chase
-  if (d > e.w) moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
 }
 
 function aiMeatball(e, dt, dx, dy, d) {
@@ -477,24 +485,20 @@ function aiMeatball(e, dt, dx, dy, d) {
 }
 
 function aiFish(e, dt, dx, dy, d) {
-  const action = e.utilityAction || 'strafe';
-  const PREF   = 200, CLOSE = 120;
+  const PREF = 190;
 
-  if (action === 'retreat' || (action === 'strafe' && d < CLOSE)) {
-    moveWithCollision(e, -(dx / d) * e.speed * 0.85 * dt, -(dy / d) * e.speed * 0.85 * dt);
-
-  } else if (e.role === 'flanker' && e.flankTarget) {
+  if (e.role === 'flanker' && e.flankTarget) {
     const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
     const fd  = Math.hypot(fdx, fdy) || 1;
     if (fd > 20) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
 
   } else if (d > PREF) {
-    moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
+    moveWithCollision(e, (dx / d) * e.speed * 1.05 * dt, (dy / d) * e.speed * 1.05 * dt);
 
   } else {
-    // Strafe orbit — harasser keeps strafing angle active
-    moveWithCollision(e, Math.cos(e.orbitAngle) * e.speed * 0.6 * dt,
-                         Math.sin(e.orbitAngle) * e.speed * 0.6 * dt);
+    // Keep pressure with close strafing instead of backing off.
+    moveWithCollision(e, Math.cos(e.orbitAngle) * e.speed * 0.85 * dt,
+                         Math.sin(e.orbitAngle) * e.speed * 0.85 * dt);
     e.orbitAngle += dt * (e.role === 'harasser' ? 1.3 : 0.9);
   }
 
@@ -507,19 +511,17 @@ function aiFish(e, dt, dx, dy, d) {
 }
 
 function aiMiniOven(e, dt, dx, dy, d) {
-  const action = e.utilityAction || 'attack';
-  const PREF   = 280, CLOSE = 140;
+  const PREF = 250;
 
-  if (action === 'retreat' || d < CLOSE) {
-    moveWithCollision(e, -(dx / d) * e.speed * 0.9 * dt, -(dy / d) * e.speed * 0.9 * dt);
-
-  } else if (e.role === 'flanker' && e.flankTarget) {
+  if (e.role === 'flanker' && e.flankTarget) {
     const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
     const fd  = Math.hypot(fdx, fdy) || 1;
     if (fd > 20) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
 
   } else if (d > PREF) {
-    moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
+    moveWithCollision(e, (dx / d) * e.speed * 1.04 * dt, (dy / d) * e.speed * 1.04 * dt);
+  } else {
+    moveWithCollision(e, (dx / d) * e.speed * 0.45 * dt, (dy / d) * e.speed * 0.45 * dt);
   }
   // If action === 'attack' and in preferred range: stand still and lob
 
@@ -546,7 +548,8 @@ function updateEnemy(e, dt) {
   // Timed status effects.
   if ((e.burnTimer || 0) > 0) {
     e.burnTimer -= dt;
-    e.hp -= (e.burnDps || 0) * dt;
+    const bossInvuln = e.type === 'boss' && (e.bossInvulnTimer || 0) > 0;
+    if (!bossInvuln) e.hp -= (e.burnDps || 0) * dt;
     if (e.hp <= 0) {
       defeatEnemy(e);
       return;

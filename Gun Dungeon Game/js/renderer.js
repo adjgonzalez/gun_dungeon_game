@@ -453,6 +453,20 @@ function drawBossSpecialFX() {
   const bsy = boss.y - cam.y;
   const now = Date.now();
 
+  if ((boss.bossInvulnTimer || 0) > 0) {
+    const pulse = 0.35 + 0.25 * Math.abs(Math.sin(now * 0.012));
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = '#66ccff';
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#66ccff';
+    ctx.beginPath();
+    ctx.ellipse(bsx, bsy + 4, boss.w / 2 + 14, boss.h / 2 + 8, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Enraged pulsing red aura
   if (boss.bossEnraged) {
     const pulse = 0.25 + 0.25 * Math.sin(now * 0.008);

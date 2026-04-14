@@ -67,6 +67,11 @@ function checkRoomClear() {
   if (room.cleared) return;
   // Room is clear only when no enemies are alive or still spawning
   if (room.spawnQueue.length === 0 && room.enemies.filter(e => e.alive || e.spawning).length === 0) {
+    if (Array.isArray(room.pendingWaves) && room.pendingWaves.length > 0) {
+      room.spawnQueue = room.pendingWaves.shift() || [];
+      triggerRoomSpawn(room);
+      return;
+    }
     room.cleared = true;
     unlockRoom(room);
     spawnParticles(room.cx, room.cy, '#ffd700', 30);

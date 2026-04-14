@@ -23,6 +23,8 @@ function rocketExplode(x, y) {
   }
   state.enemies.forEach(e => {
     if (!e.alive) return;
+    const bossInvuln = e.type === 'boss' && (e.bossInvulnTimer || 0) > 0;
+    if (bossInvuln) return;
     const d = Math.hypot(e.x - x, e.y - y);
     if (d < w.splashRadius) {
       const falloff = 1 - d / w.splashRadius;
@@ -102,6 +104,11 @@ function updatePlayerBullets(dt) {
     state.enemies.forEach(e => {
       if (!e.alive || !b.alive) return;
       if (rectOverlap(b, e)) {
+        if (e.type === 'boss' && (e.bossInvulnTimer || 0) > 0) {
+          spawnParticles(e.x, e.y, '#66ccff', 4);
+          b.alive = false;
+          return;
+        }
         if (b.rocket) {
           rocketExplode(b.x, b.y);
           b.alive = false;
