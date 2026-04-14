@@ -1,6 +1,21 @@
 // Authentication System
-// Default to same-origin API for deployed environments; allow override for dev.
-const API_URL = window.__API_BASE_URL__ || '/api/auth';
+// Use same-origin in production, but fall back to the backend on localhost for local static dev servers.
+const API_URL = (() => {
+  const configuredBase = window.__API_BASE_URL__;
+  if (configuredBase) {
+    return configuredBase.replace(/\/$/, '');
+  }
+
+  const { protocol, hostname, port, origin } = window.location;
+  const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const isNonBackendLocalPort = isLocalDevHost && port && port !== '3000';
+
+  if (protocol === 'file:' || isNonBackendLocalPort) {
+    return 'http://localhost:3000/api/auth';
+  }
+
+  return `${origin}/api/auth`;
+})();
 let authToken = localStorage.getItem('token');
 let currentUser = null;
 
