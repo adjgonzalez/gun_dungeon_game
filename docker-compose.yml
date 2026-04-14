@@ -22,8 +22,6 @@ services:
     container_name: gun-dungeon-mongo
     environment:
       MONGO_INITDB_DATABASE: gun_dungeon_game
-    ports:
-      - "27017:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
