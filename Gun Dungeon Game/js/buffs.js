@@ -37,7 +37,7 @@ function triggerLevelUp() {
 }
 
 function gainXp(amount) {
-  state.player.xp += amount;
+  state.player.xp += amount * (state.player.xpMultiplier || 1.0);
   while (state.player.xp >= state.player.xpNext) {
     state.player.xp     -= state.player.xpNext;
     state.player.xpNext  = Math.floor(state.player.xpNext * 1.35);

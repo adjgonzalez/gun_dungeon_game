@@ -13,7 +13,9 @@ function fireBullet(x, y, angle, speed, damage, range, pierce, rocket = false) {
 }
 
 function rocketExplode(x, y) {
-  const w = WEAPONS[2];  // rocket launcher definition
+  const w         = WEAPONS[2];  // rocket launcher definition
+  const dmgBonus  = state.player?.weaponDmgBonus?.[2] ?? 0;
+  const splashDmg = w.splashDamage + dmgBonus;
   spawnParticles(x, y, '#ff8800', 30);
   spawnParticles(x, y, '#ffee00', 20);
   state.enemies.forEach(e => {
@@ -21,10 +23,11 @@ function rocketExplode(x, y) {
     const d = Math.hypot(e.x - x, e.y - y);
     if (d < w.splashRadius) {
       const falloff = 1 - d / w.splashRadius;
-      e.hp -= w.splashDamage * falloff;
+      e.hp -= splashDmg * falloff;
       spawnParticles(e.x, e.y, e.color, 8);
       if (e.hp <= 0) {
         e.alive = false;
+        coinDrop(e);
         spawnXpOrb(e.x, e.y, e.xp);
         spawnParticles(e.x, e.y, e.color, 16);
       }
@@ -85,6 +88,7 @@ function updatePlayerBullets(dt) {
         else b.pierceLeft--;
         if (e.hp <= 0) {
           e.alive = false;
+          coinDrop(e);
           spawnXpOrb(e.x, e.y, e.xp);
           spawnParticles(e.x, e.y, e.color, 16);
         }
@@ -115,8 +119,7 @@ function updateEnemyBullets(dt) {
     }
 
     if (rectOverlap(b, player)) {
-      queuePlayerDamage(b.damage, { invincible: 0.5 });
-      b.alive = false;
+      if (damagePlayer(b.damage)) b.alive = false;
     }
   });
   state.enemyBullets = state.enemyBullets.filter(b => b.alive);
@@ -128,6 +131,6 @@ function fireballExplode(b) {
   const player = state.player;
   const splashR = 70;
   if (Math.hypot(player.x - b.x, player.y - b.y) < splashR) {
-    queuePlayerDamage(b.damage, { invincible: 0.5 });
+    damagePlayer(b.damage);
   }
 }

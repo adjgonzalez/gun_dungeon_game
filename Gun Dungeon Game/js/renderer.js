@@ -342,6 +342,21 @@ function drawEntity(e) {
 
   ctx.restore();
 
+  // Shield ring (player only)
+  if (e === state.player && e.shieldHp > 0 && e.shieldMaxHp > 0) {
+    const shieldAlpha = 0.4 + 0.3 * Math.sin(Date.now() * 0.004);
+    ctx.save();
+    ctx.globalAlpha  = shieldAlpha;
+    ctx.strokeStyle  = '#4af';
+    ctx.lineWidth    = 3;
+    ctx.shadowBlur   = 12;
+    ctx.shadowColor  = '#4af';
+    ctx.beginPath();
+    ctx.arc(sx, sy, e.w * 0.85, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // HP bar (enemies only)
   if (e !== player) {
     const barW = e.w + 8;
@@ -365,6 +380,153 @@ function drawEntity(e) {
     ctx.beginPath();
     ctx.arc(sx, sy, e.w * 0.8, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── Floor spike rendering ─────────────────────────────────────────────────────
+function drawFloorSpikes() {
+  const { ctx, cam } = state;
+  const now = Date.now();
+  state.floorSpikes.forEach(s => {
+    if (!s.alive) return;
+    const sx = s.x - cam.x;
+    const sy = s.y - cam.y;
+
+    if (s.phase === 'growing') {
+      // Warning glow — pulsing circle crack
+      const pulse = 0.35 + 0.65 * Math.abs(Math.sin(now * 0.014));
+      ctx.save();
+      ctx.globalAlpha  = pulse;
+      ctx.shadowBlur   = 14;
+      ctx.shadowColor  = '#f5c842';
+      ctx.strokeStyle  = '#f5c842';
+      ctx.lineWidth    = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+      ctx.stroke();
+      // Small inner dot
+      ctx.fillStyle = '#ff8800';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // Active spike cluster — 3 triangular points
+      ctx.save();
+      ctx.shadowBlur  = 10;
+      ctx.shadowColor = '#f5c842';
+      for (let i = 0; i < 3; i++) {
+        const a    = (Math.PI * 2 / 3) * i - Math.PI / 2;
+        const tipX = sx + Math.cos(a) * 16;
+        const tipY = sy + Math.sin(a) * 16;
+        const l1X  = sx + Math.cos(a + 0.45) * 7;
+        const l1Y  = sy + Math.sin(a + 0.45) * 7;
+        const l2X  = sx + Math.cos(a - 0.45) * 7;
+        const l2Y  = sy + Math.sin(a - 0.45) * 7;
+        ctx.fillStyle = i === 0 ? '#f5c842' : '#b88a00';
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(l1X, l1Y);
+        ctx.lineTo(l2X, l2Y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Centre nub
+      ctx.fillStyle = '#ff8800';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+}
+
+// ── Boss special FX ───────────────────────────────────────────────────────────
+function drawBossSpecialFX() {
+  const { ctx, cam } = state;
+  const room = state.rooms[state.currentRoom];
+  if (!room || room.type !== 'boss') return;
+  const boss = state.enemies.find(e => e.type === 'boss' && e.alive);
+  if (!boss) return;
+  const bsx = boss.x - cam.x;
+  const bsy = boss.y - cam.y;
+  const now = Date.now();
+
+  // Enraged pulsing red aura
+  if (boss.bossEnraged) {
+    const pulse = 0.25 + 0.25 * Math.sin(now * 0.008);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.shadowBlur  = 28;
+    ctx.shadowColor = '#ff0000';
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth   = 4;
+    ctx.beginPath();
+    ctx.ellipse(bsx, bsy + 4, boss.w / 2 + 10, boss.h / 2 + 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Special windup / active indicators on the boss
+  if (boss.bossAttackState === 'special_windup') {
+    const pulse = 0.5 + 0.5 * Math.abs(Math.sin(now * 0.015));
+    const colour = boss.bossCurrentSpecial === 'slices' ? '#00ff88' :
+                   boss.bossCurrentSpecial === 'roll'   ? '#ff2200' : '#ff8800';
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = colour;
+    ctx.lineWidth   = 3;
+    ctx.shadowBlur  = 14;
+    ctx.shadowColor = colour;
+    ctx.beginPath();
+    ctx.arc(bsx, bsy, boss.w * 0.75, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Stomp warning circles
+  if (boss.bossCurrentSpecial === 'stomp' && boss.bossAttackState === 'special_active') {
+    const data = boss.bossSpecialData;
+    if (data.phase === 'warning') {
+      const progress = 1 - data.warnTimer / 0.6;
+      const pulse    = 0.5 + 0.5 * Math.abs(Math.sin(now * 0.018));
+      const tx       = data.targetX - cam.x;
+      const ty       = data.targetY - cam.y;
+      // Expanding warning ring
+      ctx.save();
+      ctx.globalAlpha = (1 - progress) * pulse;
+      ctx.strokeStyle = '#ff4400';
+      ctx.lineWidth   = 3;
+      ctx.shadowBlur  = 16;
+      ctx.shadowColor = '#ff4400';
+      ctx.beginPath();
+      ctx.arc(tx, ty, 20 + progress * 55, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner X marker
+      ctx.globalAlpha = 0.7 * pulse;
+      ctx.strokeStyle = '#ffaa00';
+      ctx.lineWidth   = 2;
+      ctx.shadowBlur  = 0;
+      const s = 14;
+      ctx.beginPath();
+      ctx.moveTo(tx - s, ty - s); ctx.lineTo(tx + s, ty + s);
+      ctx.moveTo(tx + s, ty - s); ctx.lineTo(tx - s, ty + s);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Roll trail glow
+  if (boss.bossCurrentSpecial === 'roll' && boss.bossAttackState === 'special_active') {
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.shadowBlur  = 22;
+    ctx.shadowColor = '#ff2200';
+    ctx.fillStyle   = '#ff4400';
+    ctx.beginPath();
+    ctx.arc(bsx, bsy, boss.w / 2 + 8, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 }
@@ -407,6 +569,26 @@ function drawBullets() {
       ctx.fillStyle = '#ffdd00';
       ctx.beginPath(); ctx.arc(b.x - cam.x, b.y - cam.y, 4, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
+    } else if (b.spike) {
+      // Boss spike — small yellow-brown triangle oriented along travel direction
+      const angle = Math.atan2(b.vy, b.vx);
+      const bx = b.x - cam.x, by = b.y - cam.y;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(angle);
+      ctx.fillStyle  = '#f5c842';
+      ctx.shadowBlur = 8; ctx.shadowColor = '#b88a00';
+      ctx.beginPath();
+      ctx.moveTo( 8,  0);
+      ctx.lineTo(-5,  4);
+      ctx.lineTo(-5, -4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#b88a00';
+      ctx.beginPath();
+      ctx.moveTo(8, 0); ctx.lineTo(-5, 4); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.shadowBlur = 0;
     } else {
       ctx.fillStyle = '#5bc8f5';
       ctx.shadowBlur = 6; ctx.shadowColor = '#3a9abf';
@@ -441,6 +623,20 @@ function drawXpOrbs() {
     ctx.fillStyle = '#c8a000';
     ctx.beginPath(); ctx.arc(ox - 1, oy - 1, 2, 0, Math.PI * 2); ctx.fill();
   });
+}
+
+function drawFloatingTexts() {
+  const { ctx, cam } = state;
+  state.floatingTexts.forEach(t => {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t.life);
+    ctx.font        = 'bold 14px Courier New';
+    ctx.fillStyle   = t.color;
+    ctx.textAlign   = 'center';
+    ctx.fillText(t.text, t.x - cam.x, t.y - cam.y);
+    ctx.restore();
+  });
+  ctx.textAlign = 'left';
 }
 
 // ── Weapon selector HUD ───────────────────────────────────────────────────────
@@ -551,6 +747,41 @@ function drawBossUnlockBanner() {
   ctx.fillStyle = '#fff';
   ctx.font = '15px Courier New';
   ctx.fillText(text2, canvas.width / 2, cy + 56);
+
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawPressureBanner() {
+  if (state.pressureNotif <= 0) return;
+  const { ctx, canvas } = state;
+  const alpha = Math.min(1, state.pressureNotif);
+  const cy    = canvas.height / 2 + 60;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  const text1 = '⚠  PRESSURE WAVE  ⚠';
+  const text2 = 'The enemies grow restless!';
+  ctx.font = 'bold 22px Courier New';
+  const boxW = ctx.measureText(text1).width + 48;
+  const boxH = 68;
+  const bx   = canvas.width / 2 - boxW / 2;
+
+  ctx.fillStyle = 'rgba(160,0,0,0.75)';
+  ctx.beginPath(); ctx.roundRect(bx, cy, boxW, boxH, 8); ctx.fill();
+
+  ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ff6666';
+  ctx.textAlign = 'center';
+  ctx.fillText(text1, canvas.width / 2, cy + 28);
+
+  ctx.fillStyle = '#ffbbbb';
+  ctx.font = '13px Courier New';
+  ctx.fillText(text2, canvas.width / 2, cy + 50);
 
   ctx.textAlign = 'left';
   ctx.globalAlpha = 1;

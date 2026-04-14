@@ -30,6 +30,21 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  coins: { type: Number, default: 0 },
+  upgrades: {
+    hp:         { type: Number, default: 0 },
+    speed:      { type: Number, default: 0 },
+    dodge:      { type: Number, default: 0 },
+    luck:       { type: Number, default: 0 },
+    shieldCd:   { type: Number, default: 0 },
+    shieldHp:   { type: Number, default: 0 },
+    critChance: { type: Number, default: 0 },
+    critDamage: { type: Number, default: 0 },
+    xpGain:     { type: Number, default: 0 },
+    wpnHandgun: { type: Number, default: 0 },
+    wpnShotgun: { type: Number, default: 0 },
+    wpnRocket:  { type: Number, default: 0 },
+  },
   createdAt: {
     type: Date,
     default: Date.now

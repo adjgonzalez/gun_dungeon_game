@@ -31,9 +31,16 @@ const ENEMY_TYPES = {
 
 const BOSS_DEF = {
   name:'GIANT PINEAPPLE', color:'#f5c842', w:60, h:60,
-  hp:1200, speed:60, damage:30, xp:500,
-  fireRate:600, bulletSpeed:240, bulletDamage:22,
+  hp:1500, speed:55, damage:0, xp:500,
   ai:'boss',
+};
+
+// Per-phase scaling: basicGap = seconds between basic attacks,
+// projSpeed = spike projectile speed, dmgMult / specialSpeedMult scale at 30% HP
+const BOSS_PHASE_CONFIG = {
+  1: { basicGap:1.4,  projSpeed:220, ringCount:8,  floorCount:5, dmgMult:1.0, specialSpeedMult:1.0 },
+  2: { basicGap:1.0,  projSpeed:300, ringCount:12, floorCount:6, dmgMult:1.0, specialSpeedMult:1.0 },
+  3: { basicGap:0.70, projSpeed:390, ringCount:16, floorCount:8, dmgMult:1.5, specialSpeedMult:1.5 },
 };
 
 // ── Spawning ──────────────────────────────────────────────────────────────────
@@ -84,7 +91,7 @@ function populateRooms() {
 }
 
 function triggerRoomSpawn(room) {
-  room.spawnQueue.forEach((sq, i) => {
+  room.spawnQueue.forEach((sq) => {
     const def = sq.type === 'boss' ? BOSS_DEF : ENEMY_TYPES[sq.type];
     room.enemies.push({
       x: sq.x, y: sq.y,
@@ -106,90 +113,389 @@ function triggerRoomSpawn(room) {
       chargeTimer: 0, windupTimer: 0,
       chargeDir: { x: 0, y: 0 }, windingUp: false,
     });
+    // Boss-specific attack-cycle state
+    if (sq.type === 'boss') {
+      const enemy = room.enemies[room.enemies.length - 1];
+      Object.assign(enemy, {
+        bossPhase:          1,
+        bossBaseSpeed:      BOSS_DEF.speed,
+        bossAttackState:    'basic_wait',
+        bossBasicTimer:     2.5,
+        bossBasicCount:     0,
+        bossCurrentPattern: 0,
+        bossBasicsPerCycle: 3,
+        bossSpecialTimer:   0,
+        bossCurrentSpecial: null,
+        bossSpecialData:    {},
+        bossEnraged:        false,
+      });
+    }
   });
   room.spawnQueue = [];
   state.enemies = room.enemies.filter(e => e.alive || e.spawning);
 }
 
-// ── AI behaviours ─────────────────────────────────────────────────────────────
+// ── Boss AI ────────────────────────────────────────────────────────────────────
+
 function updateBoss(e, dt, dx, dy, d) {
-  const hpRatio = e.hp / e.maxHp;
-  if (hpRatio < 0.5  && e.phase === 1) { e.phase = 2; e.speed *= 1.4; e.fireRate *= 0.7; }
-  if (hpRatio < 0.25 && e.phase === 2) { e.phase = 3; e.speed *= 1.3; e.fireRate *= 0.6; }
+  _bossCheckPhase(e);
+  const cfg = BOSS_PHASE_CONFIG[e.bossPhase];
 
-  e.bossTimer += dt;
-  if (e.bossTimer > 3) { e.bossTimer = 0; e.charging = 1.0; }
+  // Movement — locked during windup and active stomps/rolls
+  const moveLocked = e.bossAttackState === 'special_windup' ||
+    (e.bossAttackState === 'special_active' &&
+      (e.bossCurrentSpecial === 'roll' || e.bossCurrentSpecial === 'stomp'));
+  if (!moveLocked && d > e.w + 20) {
+    moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+  }
 
-  const speed = e.charging > 0 ? e.speed * 3 : e.speed;
-  if (e.charging > 0) e.charging -= dt * 2;
-  if (d > e.w + 10) moveWithCollision(e, dx / d * speed * dt, dy / d * speed * dt);
-}
-
-function fireBossPattern(e) {
-  const count = e.phase === 1 ? 8 : e.phase === 2 ? 12 : 16;
-  for (let i = 0; i < count; i++) {
-    const a = (Math.PI * 2 / count) * i + e.bossTimer * 0.5;
-    fireEnemyBullet(e.x, e.y, a, e.bulletSpeed, e.bulletDamage);
+  // Attack cycle state machine
+  if (e.bossAttackState === 'basic_wait') {
+    e.bossBasicTimer -= dt;
+    if (e.bossBasicTimer <= 0) {
+      _bossDoBasicAttack(e, dx, dy, d, cfg);
+      e.bossBasicCount++;
+      if (e.bossBasicCount >= e.bossBasicsPerCycle) {
+        e.bossBasicCount = 0;
+        _bossBeginSpecial(e, dx, dy, d, cfg);
+      } else {
+        e.bossBasicTimer = cfg.basicGap;
+      }
+    }
+  } else {
+    _bossupdateSpecialState(e, dt, dx, dy, d, cfg);
   }
 }
 
+function _bossCheckPhase(e) {
+  const hp = e.hp / e.maxHp;
+  if (hp < 0.65 && e.bossPhase === 1) {
+    e.bossPhase = 2;
+    e.speed     = e.bossBaseSpeed * 1.2;
+    spawnFloatingText(e.x, e.y - 60, 'PHASE 2', '#ff8800');
+    spawnParticles(e.x, e.y, '#ff8800', 40);
+  }
+  if (hp < 0.30 && e.bossPhase === 2) {
+    e.bossPhase    = 3;
+    e.speed        = e.bossBaseSpeed * 1.5;
+    e.bossEnraged  = true;
+    e.bossBasicsPerCycle = randInt(1, 2);
+    spawnFloatingText(e.x, e.y - 60, 'ENRAGED!', '#ff0000');
+    spawnParticles(e.x, e.y, '#ff0000', 60);
+    spawnParticles(e.x, e.y, '#ff8800', 30);
+  }
+}
+
+function _bossDoBasicAttack(e, dx, dy, d, cfg) {
+  const pattern = e.bossCurrentPattern;
+  e.bossCurrentPattern = (e.bossCurrentPattern + 1) % 4;
+  const spd = cfg.projSpeed;
+  const dm  = cfg.dmgMult;
+
+  switch (pattern) {
+    case 0:   // Direct spike at player
+      fireEnemySpikeAt(e.x, e.y, e.angle, spd, 3 * dm);
+      break;
+
+    case 1:   // 360-degree spike ring
+      for (let i = 0; i < cfg.ringCount; i++) {
+        fireEnemySpikeAt(e.x, e.y, (Math.PI * 2 / cfg.ringCount) * i, spd, 3 * dm);
+      }
+      break;
+
+    case 2:   // Random floor spikes
+      _spawnRandomFloorSpikes(e, cfg.floorCount, 4 * dm);
+      break;
+
+    case 3:   // Line of floor spikes toward player
+      _spawnLineFloorSpikes(e, dx, dy, d, 4 * dm);
+      break;
+  }
+}
+
+function _bossBeginSpecial(e, _dx, _dy, _d, cfg) {
+  const specials = ['slices', 'roll', 'stomp'];
+  e.bossCurrentSpecial = choice(specials);
+  e.bossAttackState    = 'special_windup';
+  e.bossSpecialTimer   = 0.9 / cfg.specialSpeedMult;
+  e.bossSpecialData    = {};
+  spawnFloatingText(e.x, e.y - 50, '!!', '#ff4400');
+}
+
+function _bossupdateSpecialState(e, dt, dx, dy, d, cfg) {
+  const player = state.player;
+
+  if (e.bossAttackState === 'special_windup') {
+    e.bossSpecialTimer -= dt;
+    if (e.bossSpecialTimer <= 0) {
+      e.bossAttackState = 'special_active';
+      _bossActivateSpecial(e, dx, dy, d, cfg);
+    }
+    return;
+  }
+
+  if (e.bossAttackState === 'special_active') {
+    const data = e.bossSpecialData;
+    const dm   = cfg.dmgMult;
+
+    if (e.bossCurrentSpecial === 'roll') {
+      moveWithCollision(e, data.vx * dt, data.vy * dt);
+      data.timer -= dt;
+      // Deal contact damage during roll (once per entry via invincibility frames)
+      if (Math.hypot(player.x - e.x, player.y - e.y) < (e.w + player.w) / 2 + 8) {
+        damagePlayer(5 * dm);
+      }
+      if (data.timer <= 0) {
+        e.bossAttackState  = 'special_recovery';
+        e.bossSpecialTimer = 0.5;
+      }
+
+    } else if (e.bossCurrentSpecial === 'stomp') {
+      if (data.phase === 'warning') {
+        data.warnTimer -= dt;
+        if (data.warnTimer <= 0) {
+          // Impact
+          spawnParticles(data.targetX, data.targetY, '#f5c842', 25);
+          spawnParticles(data.targetX, data.targetY, '#ff8800', 15);
+          if (Math.hypot(player.x - data.targetX, player.y - data.targetY) < 72) {
+            damagePlayer(5 * dm);
+          }
+          data.stompCount++;
+          if (data.stompCount >= data.maxStomps) {
+            e.bossAttackState  = 'special_recovery';
+            e.bossSpecialTimer = 0.5;
+          } else {
+            data.phase     = 'pause';
+            data.warnTimer = 0.3 / cfg.specialSpeedMult;
+          }
+        }
+      } else if (data.phase === 'pause') {
+        data.warnTimer -= dt;
+        if (data.warnTimer <= 0) {
+          data.targetX   = player.x;
+          data.targetY   = player.y;
+          data.phase     = 'warning';
+          data.warnTimer = 0.6 / cfg.specialSpeedMult;
+        }
+      }
+    }
+    // 'slices' special activates instantly; state transitions handled in activate
+    return;
+  }
+
+  if (e.bossAttackState === 'special_recovery') {
+    e.bossSpecialTimer -= dt;
+    if (e.bossSpecialTimer <= 0) {
+      e.bossAttackState    = 'basic_wait';
+      e.bossCurrentSpecial = null;
+      e.bossSpecialData    = {};
+      const cfg2 = BOSS_PHASE_CONFIG[e.bossPhase];
+      e.bossBasicTimer = cfg2.basicGap;
+      // Re-randomise cycle length in phase 3
+      if (e.bossPhase === 3) e.bossBasicsPerCycle = randInt(1, 2);
+    }
+  }
+}
+
+function _bossActivateSpecial(e, dx, dy, d, cfg) {
+  const player = state.player;
+  const room   = state.rooms[state.currentRoom];
+
+  if (e.bossCurrentSpecial === 'slices') {
+    // Spawn 3 pineapple slices around the boss
+    for (let i = 0; i < 3; i++) {
+      const a  = (Math.PI * 2 / 3) * i + Math.random();
+      const sx = clamp(e.x + Math.cos(a) * 90, room.tx * TILE + 60, (room.tx + room.w) * TILE - 60);
+      const sy = clamp(e.y + Math.sin(a) * 90, room.ty * TILE + 60, (room.ty + room.h) * TILE - 60);
+      _spawnBossSlice(room, sx, sy);
+    }
+    e.bossAttackState  = 'special_recovery';
+    e.bossSpecialTimer = 0.4;
+
+  } else if (e.bossCurrentSpecial === 'roll') {
+    const spMult = cfg.specialSpeedMult;
+    e.bossSpecialData = {
+      vx: dx / d * e.bossBaseSpeed * 4.5 * spMult,
+      vy: dy / d * e.bossBaseSpeed * 4.5 * spMult,
+      timer: 1.4 / spMult,
+    };
+
+  } else if (e.bossCurrentSpecial === 'stomp') {
+    e.bossSpecialData = {
+      stompCount: 0,
+      maxStomps:  3,
+      phase:      'warning',
+      warnTimer:  0.6 / cfg.specialSpeedMult,
+      targetX:    player.x,
+      targetY:    player.y,
+    };
+  }
+}
+
+// ── Boss helper spawners ───────────────────────────────────────────────────────
+
+function _spawnBossSlice(room, x, y) {
+  const def = ENEMY_TYPES['pineapple_slice'];
+  const sl  = {
+    x, y, w: def.w, h: def.h,
+    hp: def.hp, maxHp: def.hp,
+    speed: def.speed, damage: def.damage,
+    color: def.color, xp: 0, name: def.name,
+    fireRate:0, fireCooldown:0, bulletSpeed:0, bulletDamage:0, chargeSpeed:0,
+    ai: def.ai, angle:0, alive:true, spawning:false,
+    orbitAngle: Math.random() * Math.PI * 2,
+    type:'pineapple_slice', phase:1, bossTimer:0, charging:0,
+    mbState:'idle', chargeCooldown:rand(1.5,3.0),
+    chargeTimer:0, windupTimer:0, chargeDir:{x:0,y:0}, windingUp:false,
+    role: 'aggressor', utilityAction: 'chase',
+  };
+  room.enemies.push(sl);
+  state.enemies.push(sl);
+}
+
+function _spawnRandomFloorSpikes(_e, count, damage) {
+  const room   = state.rooms[state.currentRoom];
+  const margin = 80;
+  for (let i = 0; i < count; i++) {
+    const sx = room.tx * TILE + margin + Math.random() * (room.w * TILE - margin * 2);
+    const sy = room.ty * TILE + margin + Math.random() * (room.h * TILE - margin * 2);
+    state.floorSpikes.push({ x:sx, y:sy, damage, growTimer:0.55, growTimerMax:0.55, activeTimer:1.3, alive:true, phase:'growing' });
+  }
+}
+
+function _spawnLineFloorSpikes(e, dx, dy, d, damage) {
+  const count  = 6;
+  const nx     = dx / d, ny = dy / d;
+  for (let i = 0; i < count; i++) {
+    const dist = 90 + i * 65;
+    // stagger grow timers so they erupt in sequence
+    state.floorSpikes.push({
+      x: e.x + nx * dist, y: e.y + ny * dist,
+      damage, growTimer: 0.2 + i * 0.08, growTimerMax: 0.2 + i * 0.08,
+      activeTimer: 1.3, alive: true, phase: 'growing',
+    });
+  }
+}
+
+function fireEnemySpikeAt(x, y, angle, speed, damage) {
+  state.enemyBullets.push({
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    damage, alive:true, w:8, h:8,
+    range:720, distTraveled:0,
+    fireball:false, spike:true,
+  });
+}
+
+function updateFloorSpikes(dt) {
+  const player = state.player;
+  if (!player || !player.alive) { state.floorSpikes = []; return; }
+  state.floorSpikes.forEach(s => {
+    if (!s.alive) return;
+    if (s.phase === 'growing') {
+      s.growTimer -= dt;
+      if (s.growTimer <= 0) s.phase = 'active';
+    } else {
+      s.activeTimer -= dt;
+      if (s.activeTimer <= 0) { s.alive = false; return; }
+      if (Math.hypot(player.x - s.x, player.y - s.y) < 22) {
+        damagePlayer(s.damage);
+      }
+    }
+  });
+  state.floorSpikes = state.floorSpikes.filter(s => s.alive);
+}
+
 // ── Individual AI handlers ────────────────────────────────────────────────────
+// These receive the utility action and role from the global systems and
+// adjust their movement / attack decisions accordingly.
+
 function aiPineapple(e, dt, dx, dy, d) {
-  // Pure melee chaser — faster than player, always closes in
-  if (d > e.w) moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+  const action = e.utilityAction || 'chase';
+  const role   = e.role          || 'aggressor';
+
+  if (action === 'retreat') {
+    // Critical HP — run away
+    moveWithCollision(e, -(dx / d) * e.speed * 1.3 * dt, -(dy / d) * e.speed * 1.3 * dt);
+    return;
+  }
+
+  if (role === 'flanker' && e.flankTarget) {
+    // Approach from the director-assigned flanking angle
+    const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
+    const fd  = Math.hypot(fdx, fdy) || 1;
+    if (fd > 24) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
+    return;
+  }
+
+  // Default: fast direct chase
+  if (d > e.w) moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
 }
 
 function aiMeatball(e, dt, dx, dy, d) {
   const player = state.player;
-  e.windingUp = false;
+  e.windingUp  = false;
+
+  // The meatball runs its own state machine — utility only trims the charge range
+  // If flanker, bias its idle approach toward the flank point
+  const useFlank = e.role === 'flanker' && e.flankTarget && e.mbState === 'idle';
 
   if (e.mbState === 'idle') {
-    // Slow shamble toward player
-    if (d > e.w + 4) moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
+    if (useFlank) {
+      const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
+      const fd  = Math.hypot(fdx, fdy) || 1;
+      if (fd > 20) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
+    } else if (d > e.w + 4) {
+      moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
+    }
+
     e.chargeCooldown -= dt;
-    if (e.chargeCooldown <= 0 && d < 420) {
-      // Predict where the player will be when the meatball arrives
+    // Aggressors charge slightly more often; flankers wait until positioned
+    const chargeRange = e.role === 'flanker' ? 320 : 420;
+    if (e.chargeCooldown <= 0 && d < chargeRange) {
       const travelTime = d / e.chargeSpeed;
       const predX = player.x + (player.vx || 0) * travelTime;
       const predY = player.y + (player.vy || 0) * travelTime;
-      const pdx   = predX - e.x, pdy = predY - e.y;
-      const pd    = Math.hypot(pdx, pdy) || 1;
-      e.chargeDir  = { x: pdx / pd, y: pdy / pd };
-      e.mbState    = 'windup';
+      const pdx = predX - e.x, pdy = predY - e.y;
+      const pd  = Math.hypot(pdx, pdy) || 1;
+      e.chargeDir   = { x: pdx / pd, y: pdy / pd };
+      e.mbState     = 'windup';
       e.windupTimer = 0.55;
     }
+
   } else if (e.mbState === 'windup') {
-    // Brief pause — enemy shakes as a warning
     e.windingUp   = true;
     e.windupTimer -= dt;
-    if (e.windupTimer <= 0) {
-      e.mbState    = 'charging';
-      e.chargeTimer = 0.75;
-    }
+    if (e.windupTimer <= 0) { e.mbState = 'charging'; e.chargeTimer = 0.75; }
+
   } else if (e.mbState === 'charging') {
-    // Lock direction charge — cannot steer
     moveWithCollision(e, e.chargeDir.x * e.chargeSpeed * dt, e.chargeDir.y * e.chargeSpeed * dt);
     e.chargeTimer -= dt;
-    if (e.chargeTimer <= 0) {
-      e.mbState        = 'idle';
-      e.chargeCooldown = rand(2.0, 3.5);
-    }
+    if (e.chargeTimer <= 0) { e.mbState = 'idle'; e.chargeCooldown = rand(2.0, 3.5); }
   }
 }
 
 function aiFish(e, dt, dx, dy, d) {
-  const PREFERRED = 200, FLEE = 120;
-  if (d > PREFERRED) {
-    // Close in slowly
-    moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
-  } else if (d < FLEE) {
-    // Back away if player gets too close
-    moveWithCollision(e, -dx / d * e.speed * 0.7 * dt, -dy / d * e.speed * 0.7 * dt);
+  const action = e.utilityAction || 'strafe';
+  const PREF   = 200, CLOSE = 120;
+
+  if (action === 'retreat' || (action === 'strafe' && d < CLOSE)) {
+    moveWithCollision(e, -(dx / d) * e.speed * 0.85 * dt, -(dy / d) * e.speed * 0.85 * dt);
+
+  } else if (e.role === 'flanker' && e.flankTarget) {
+    const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
+    const fd  = Math.hypot(fdx, fdy) || 1;
+    if (fd > 20) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
+
+  } else if (d > PREF) {
+    moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
+
   } else {
-    // Strafe sideways at preferred range
-    moveWithCollision(e,  Math.cos(e.orbitAngle) * e.speed * 0.6 * dt,
-                          Math.sin(e.orbitAngle) * e.speed * 0.6 * dt);
-    e.orbitAngle += dt * 1.0;
+    // Strafe orbit — harasser keeps strafing angle active
+    moveWithCollision(e, Math.cos(e.orbitAngle) * e.speed * 0.6 * dt,
+                         Math.sin(e.orbitAngle) * e.speed * 0.6 * dt);
+    e.orbitAngle += dt * (e.role === 'harasser' ? 1.3 : 0.9);
   }
 
   // Shoot at current player position — no prediction
@@ -201,13 +507,21 @@ function aiFish(e, dt, dx, dy, d) {
 }
 
 function aiMiniOven(e, dt, dx, dy, d) {
-  const PREFERRED = 280, FLEE = 140;
-  if (d > PREFERRED) {
-    moveWithCollision(e, dx / d * e.speed * dt, dy / d * e.speed * dt);
-  } else if (d < FLEE) {
-    moveWithCollision(e, -dx / d * e.speed * 0.8 * dt, -dy / d * e.speed * 0.8 * dt);
+  const action = e.utilityAction || 'attack';
+  const PREF   = 280, CLOSE = 140;
+
+  if (action === 'retreat' || d < CLOSE) {
+    moveWithCollision(e, -(dx / d) * e.speed * 0.9 * dt, -(dy / d) * e.speed * 0.9 * dt);
+
+  } else if (e.role === 'flanker' && e.flankTarget) {
+    const fdx = e.flankTarget.x - e.x, fdy = e.flankTarget.y - e.y;
+    const fd  = Math.hypot(fdx, fdy) || 1;
+    if (fd > 20) moveWithCollision(e, (fdx / fd) * e.speed * dt, (fdy / fd) * e.speed * dt);
+
+  } else if (d > PREF) {
+    moveWithCollision(e, (dx / d) * e.speed * dt, (dy / d) * e.speed * dt);
   }
-  // No strafing — the oven just stands and lobs fireballs
+  // If action === 'attack' and in preferred range: stand still and lob
 
   // Shoot predicted fireball
   e.fireCooldown -= dt * 1000;
@@ -235,22 +549,31 @@ function updateEnemy(e, dt) {
   const d  = Math.hypot(dx, dy) || 1;
   e.angle  = Math.atan2(dy, dx);
 
-  switch (e.ai) {
-    case 'pineapple': aiPineapple(e, dt, dx, dy, d); break;
-    case 'meatball':  aiMeatball (e, dt, dx, dy, d); break;
-    case 'fish':      aiFish     (e, dt, dx, dy, d); break;
-    case 'mini_oven': aiMiniOven (e, dt, dx, dy, d); break;
-    case 'boss':      updateBoss (e, dt, dx, dy, d); break;
-  }
+  // ── 1. Utility AI: score actions, pick the best one ────────────────────────
+  computeUtility(e);
 
-  // Boss shooting handled separately
-  if (e.ai === 'boss') {
-    e.fireCooldown -= dt * 1000;
-    if (e.fireCooldown <= 0 && d < 700) {
-      e.fireCooldown = e.fireRate;
-      fireBossPattern(e);
+  // ── 2. Behavior tree: dodge interrupt + flocking ───────────────────────────
+  //    Returns true if an interrupt (dodge / flee) fully handled movement.
+  const btHandled = runBehaviorTree(e, dt);
+
+  // ── 3. Type-specific AI (skipped only when BT issued an interrupt) ─────────
+  if (!btHandled) {
+    switch (e.ai) {
+      case 'pineapple': aiPineapple(e, dt, dx, dy, d); break;
+      case 'meatball':  aiMeatball (e, dt, dx, dy, d); break;
+      case 'fish':      aiFish     (e, dt, dx, dy, d); break;
+      case 'mini_oven': aiMiniOven (e, dt, dx, dy, d); break;
+      case 'boss':      updateBoss (e, dt, dx, dy, d); break;
     }
   }
+
+}
+
+function coinDrop(e) {
+  const base = { pineapple_slice:1, fish:1, meatball:2, mini_oven:2, boss:20 };
+  const amount = (base[e.type] || 1) + (Math.random() < (state.player?.luck || 0) * 0.08 ? 1 : 0);
+  state.runCoins = (state.runCoins || 0) + amount;
+  spawnFloatingText(e.x, e.y - 16, `+${amount}🪙`, '#f5c842');
 }
 
 function separateEntities() {
@@ -304,14 +627,7 @@ function updateEnemyContact(dt) {
     const dy = player.y - e.y;
     const d  = Math.hypot(dx, dy);
     if (d < minDist) {
-      const safeD = d || 1;
-      const nx = dx / safeD;
-      const ny = dy / safeD;
-      queuePlayerDamage(e.damage * dt * 3, {
-        invincible: 0.25,
-        knockbackX: nx * 12,
-        knockbackY: ny * 12,
-      });
+      damagePlayer(e.damage * dt * 3);
     }
   });
 }

@@ -23,11 +23,15 @@ const state = {
   enemyBullets: [],
   particles:    [],
   xpOrbs:       [],
+  runCoins:     0,
+  floatingTexts:[],
+  floorSpikes:  [],
 
   // Boss door
   bossDoorTiles:    [],
   bossLocked:       true,
   bossUnlockNotif:  0,   // countdown seconds for "boss room unlocked" banner
+  pressureNotif:    0,   // countdown seconds for "pressure wave" banner
 
   // Delayed room lock
   lockPending:  false,
@@ -83,4 +87,8 @@ function applyQueuedPlayerDamage() {
   pending.invincible = 0.25;
   pending.knockbackX = 0;
   pending.knockbackY = 0;
+}
+
+function spawnFloatingText(x, y, text, color = '#fff') {
+  state.floatingTexts.push({ x, y, text, color, life: 1.2, vy: -55 });
 }
