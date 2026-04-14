@@ -46,7 +46,7 @@ Then edit `.env` and set a strong `JWT_SECRET`.
 docker compose up --build -d
 ```
 
-Open the app at `http://localhost:5000`.
+Open the app at `http://localhost:3000`.
 
 ### 4. Useful commands
 
