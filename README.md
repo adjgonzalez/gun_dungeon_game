@@ -15,8 +15,70 @@ Project Videos:
 
 Project Setup / Installation:
 
-* Your project setup and installation instructions go here
-* Feel free to include screenshots if you want
+## Setup and Installation
+
+### Prerequisites
+
+| Tool | Version | Purpose |
+|---|---|---|
+| Node.js | 18+ | Run the backend server |
+| npm | 9+ | Install backend dependencies |
+| MongoDB | 6+ | Database (or use Docker to skip this) |
+| Docker + Docker Compose | any recent | Easiest way to run everything together |
+
+---
+
+Docker (recommended)
+
+No need to install MongoDB separately. One command starts both the server and the database.
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/adjgonzalez/gun_dungeon_game.git
+cd gun_dungeon_game
+```
+
+**2. Set required environment variables**
+
+The only variable you _must_ set before running is `JWT_SECRET`. The rest have working defaults.
+
+```bash
+# Windows (Command Prompt)
+set JWT_SECRET=pick_any_long_random_string
+
+# Windows (PowerShell)
+$env:JWT_SECRET="pick_any_long_random_string"
+
+# macOS / Linux
+export JWT_SECRET=pick_any_long_random_string
+```
+
+Or create a `.env` file in the repo root:
+```
+JWT_SECRET=pick_any_long_random_string
+CORS_ORIGIN=http://localhost:3000
+```
+
+**3. Build and start**
+```bash
+docker compose up --build
+```
+
+**4. Open the game**
+
+Navigate to `http://localhost:3000` in your browser.
+
+To stop:
+```bash
+docker compose down
+```
+
+To stop and delete the database volume:
+```bash
+docker compose down -v
+```
+
+---
 
 ## Docker Deployment (Recommended)
 
