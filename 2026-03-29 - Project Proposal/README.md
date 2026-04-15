@@ -229,68 +229,48 @@ Every **5 levels**, choose a **Rare or Legendary** upgrade.
 - Docker
   - Use for creating container for deployment
 
-## Project Structure Proposal (To be changed)
+## Project Structure Proposal 
  
-```text
-my-oven-game/
+```
+Assignment 4/
 │
-├── client/                              # frontend files served to the browser
-│   ├── index.html                       # main game page
-│   ├── play.html                        # page for playing a live game
-│   ├── history.html                     # page listing past games
-│   ├── replay.html                      # page for viewing a replay
-│   │
-│   ├── css/
-│   │   ├── styles.css                   # shared global styles
-│   │   ├── play.css                     # styles for play screen
-│   │   ├── history.css                  # styles for past games page
-│   │   └── replay.css                   # styles for replay screen
-│   │
-│   ├── js/
-│   │   ├── main.js                      # shared startup logic
-│   │   ├── play.js                      # live game logic in the browser
-│   │   ├── history.js                   # loads and displays past games
-│   │   ├── replay.js                    # replay controls and playback
-│   │   ├── board.js                     # board rendering and interaction
-│   │   └── ui.js                        # status text, buttons, move list, etc.
-│   │
-│   └── assets/
-│       ├── images/
-│       │   ├── board/                   # board graphics
-│       │   └── pieces/                  # chess piece images
-│       └── audio/
-│           ├── move.wav                 # move sound
-│           ├── capture.wav              # capture sound
-│           └── check.wav                # check sound
+├── Gun Dungeon Game/          # Static frontend — served by Express
+│   ├── index.html             # Single HTML entry point; all screens live here as divs
+│   ├── style.css              # All UI styles (HUD, menus, upgrade shop, buff cards)
+│   └── js/
+│       ├── constants.js       # Tile sizes, room dimensions, WEAPONS[] definitions
+│       ├── utils.js           # Pure helpers: rand, clamp, choice, rectOverlap
+│       ├── state.js           # Shared mutable game state object + damage queue helpers
+│       ├── input.js           # Keyboard (keys{}), mouse, and scroll-wheel listeners
+│       ├── world.js           # Tile map, dungeon generation, collision, room tracking
+│       ├── particles.js       # Particle pool spawn/update
+│       ├── buffs.js           # In-run level-up buff definitions and rarity roll system
+│       ├── bullets.js         # Player and enemy projectile simulation; rocket AOE; floor
+│       ├── upgrades.js        # Persistent upgrade shop — definitions, API calls, UI render
+│       ├── director.js        # Swarm Director: global AI brain, role assignment, pressure
+│       ├── utility.js         # Utility AI: per-enemy action scoring each frame
+│       ├── btree.js           # Behavior Tree: dodge interrupts, flee, flocking
+│       ├── enemies.js         # Enemy types, boss AI state machine, spawning, floor spikes
+│       ├── player.js          # Player entity, movement, shooting, damage handler
+│       ├── renderer.js        # All Canvas 2D drawing — zero game logic
+│       ├── hud.js             # DOM HUD updates (HP bar, XP bar, coin counter)
+│       ├── auth.js            # Login/register UI and JWT token management
+│       └── main.js            # Game loop orchestrator; wires every system together
 │
-├── server/                              # Node backend
-│   ├── server.js                        # express setup, static serving, API mounting
-│   ├── db.js                            # MongoDB connection setup
-│   ├── package.json                     # backend dependencies and scripts
-│   ├── .env                             # environment variables
-│   │
-│   ├── api/
-│   │   ├── auth.js                      # login/register routes
-│   │   ├── games.js                     # save/load/list completed games
-│   │   └── ai.js                        # route for requesting an AI move
-│   │
+├── backend/
+│   ├── server.js              # Express app setup, CORS, static serving, MongoDB connect
+│   ├── routes/
+│   │   └── auth.js            # POST /register, POST /login, GET/PUT /upgrades
 │   ├── models/
-│   │   ├── User.js                      # user account schema
-│   │   └── Game.js                      # saved game + move history schema
-│   │
-│   ├── chess/
-│   │   ├── ChessGame.js                 # board state, legal moves, rules, move application
-│   │   └── ChessAI.js                   # AI search + evaluation in one file
-│   │
-│   └── utils/
-│       └── auth.js                      # password hashing / token helpers
+│   │   └── User.js            # Mongoose schema: credentials, coins, 12 upgrade fields
+│   ├── .env                   # MONGODB_URI, JWT_SECRET, PORT, CORS_ORIGIN (not committed)
+│   ├── .env.example           # Template for the above
+│   └── package.json           # Dependencies: express, mongoose, bcryptjs, jsonwebtoken
 │
-├── docker/
-│   ├── Dockerfile                       # container for Node app
-│   └── docker-compose.yml               # runs app + MongoDB together
-│
-├── .gitignore                           # ignores .env, node_modules, etc.
-└── README.md                            # project overview and setup instructions
+├── Dockerfile                 # Builds the Node backend image
+├── docker-compose.yml         # Runs backend + MongoDB together
+├── .dockerignore
+└── README.md
 ```
 # Enemy AI System
 
